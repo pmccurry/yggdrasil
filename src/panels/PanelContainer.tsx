@@ -1,19 +1,96 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, useState } from 'react';
+import { PanelType } from '../types/panels';
 import type { PanelProps } from '../types/panels';
+import { PANEL_REGISTRY } from './registry';
 import PanelSkeleton from './PanelSkeleton';
-
-const TerminalPanel = lazy(() => import('./terminal/TerminalPanel'));
+import PanelPicker from './PanelPicker';
 
 interface PanelContainerProps {
+  panelType: PanelType;
   panelProps: PanelProps;
+  onSwapPanel: (newType: PanelType) => void;
 }
 
-function PanelContainer({ panelProps }: PanelContainerProps) {
+function PanelContainer({ panelType, panelProps, onSwapPanel }: PanelContainerProps) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const entry = PANEL_REGISTRY[panelType];
+  const PanelComponent = entry.component;
+
   return (
-    <div style={{ width: '100%', height: '100%', overflow: 'hidden' }}>
-      <Suspense fallback={<PanelSkeleton />}>
-        <TerminalPanel {...panelProps} />
-      </Suspense>
+    <div style={{
+      width: '100%', height: '100%',
+      display: 'flex', flexDirection: 'column',
+      overflow: 'hidden',
+      backgroundColor: 'var(--bg-surface)',
+      borderRight: '1px solid var(--border-subtle)',
+    }}>
+      {/* Panel Header */}
+      <div style={{
+        height: 'var(--panel-header-height)',
+        minHeight: 'var(--panel-header-height)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0 10px',
+        backgroundColor: 'var(--bg-elevated)',
+        borderBottom: '1px solid var(--border-subtle)',
+        userSelect: 'none',
+      }}>
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: '6px',
+          fontFamily: 'var(--font-mono)',
+          fontSize: 'var(--font-size-sm)',
+          color: 'var(--text-secondary)',
+        }}>
+          <span style={{ fontSize: 'var(--font-size-md)' }}>{entry.icon}</span>
+          <span>{entry.label}</span>
+        </div>
+        <button
+          onClick={() => setPickerOpen(true)}
+          title="Change panel type"
+          style={{
+            background: 'none',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: '3px',
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 'var(--font-size-xs)',
+            padding: '2px 6px',
+            transition: 'color 0.15s, border-color 0.15s',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = 'var(--accent)';
+            e.currentTarget.style.borderColor = 'var(--accent-border)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = 'var(--text-muted)';
+            e.currentTarget.style.borderColor = 'var(--border-subtle)';
+          }}
+        >
+          swap
+        </button>
+      </div>
+
+      {/* Panel Content */}
+      <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+        <Suspense fallback={<PanelSkeleton />}>
+          <PanelComponent {...panelProps} />
+        </Suspense>
+
+        {pickerOpen && (
+          <PanelPicker
+            currentType={panelType}
+            onSelect={(newType) => {
+              setPickerOpen(false);
+              if (newType !== panelType) {
+                onSwapPanel(newType);
+              }
+            }}
+            onClose={() => setPickerOpen(false)}
+          />
+        )}
+      </div>
     </div>
   );
 }

@@ -46,7 +46,7 @@ Every plan journal entry uses one of these status tags:
 |---|---|---|---|
 | M0 — Scaffold | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
 | M1 — Terminal Panel | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
-| M2 — Shell & Layout | `[PLANNED]` | — | — |
+| M2 — Shell & Layout | `[IN PROGRESS]` | 2026-02-24 | — |
 | M3 — Workspace Persistence | `[PLANNED]` | — | — |
 | M4 — Remaining Panels | `[PLANNED]` | — | — |
 | M5 — Status Widgets | `[PLANNED]` | — | — |
@@ -345,7 +345,31 @@ switches workspaces correctly. Content comes later.
 
 ### M2 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### Plan Entry: M2 Shell & Layout — 2026-02-24
+**Status:** `[IN PROGRESS]`
+
+**Approach:**
+- Build bottom-up: contexts first, then components, then assembly
+- Inline styles with CSS variable references to stay within file structure
+- Two hardcoded workspaces: Ratatoskr (#00ff88 green) and Elementals (#60a5fa blue)
+- Panel stubs for non-terminal panels (placeholder divs satisfying PanelProps)
+- PanelContainer upgraded from M1 to use PANEL_REGISTRY lookup + PanelHeader
+
+**Steps:**
+1. WorkspaceContext — useReducer with hardcoded workspaces, accent color switching
+2. AppContext — planningDrawerOpen toggle
+3. Panel stubs — Webview, FileTree, Editor, Claude (placeholder components)
+4. PANEL_REGISTRY — all five panel types with React.lazy()
+5. PanelContainer — registry lookup, Suspense, PanelHeader with swap button
+6. PanelPicker — panel type selector overlay
+7. LayoutGrid — three PanelContainers from active workspace layout
+8. WorkspaceCard — individual workspace entry for sidebar
+9. Sidebar — workspace list, switching, layout preview
+10. StatusBar — workspace name, icon, widget placeholders
+11. PlanningDrawer — collapsed toggle only
+12. App.tsx — full layout assembly with providers
+13. Verify: tsc, tauri dev, terminal in full layout
+14. Commit
 
 ---
 

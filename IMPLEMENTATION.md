@@ -48,7 +48,7 @@ Every plan journal entry uses one of these status tags:
 | M1 — Terminal Panel | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
 | M2 — Shell & Layout | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
 | M3 — Workspace Persistence | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
-| M4 — Remaining Panels | `[PLANNED]` | — | — |
+| M4 — Remaining Panels | `[IN PROGRESS]` | 2026-02-24 | — |
 | M5 — Status Widgets | `[PLANNED]` | — | — |
 | M6 — Polish & V1 Close | `[PLANNED]` | — | — |
 
@@ -590,7 +590,35 @@ network tab to confirm Monaco only loads when Editor panel is mounted.
 
 ### M4 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### Plan Entry: M4 Remaining Panels — 2026-02-24
+**Status:** `[COMPLETED]`
+
+**Architecture Decisions:**
+- D015 — FileTree→Editor communication via custom DOM events (panel contract compliant)
+- D015b — Webview embedding uses Tauri child Webview with `unstable` feature flag
+- D016 — Filesystem via custom Rust commands, not plugin-fs
+
+**Steps:**
+1. Install `@monaco-editor/react`, add `core:webview:default` to Tauri capabilities
+2. Write Rust commands: `filesystem.rs` (read_directory, read_file, FileNode), `git.rs` (get_git_status), `claude.rs` (detect_claude_desktop, launch_claude_desktop)
+3. Register all new Rust commands in `mod.rs` and `lib.rs`
+4. Write TypeScript shell wrappers: `filesystem.ts`, `git.ts`, `claude.ts`
+5. Implement WebviewPanel — Tauri Webview API, ResizeObserver, URL bar, cleanup
+6. Implement FileTreePanel — recursive lazy-load tree, git status indicators, file click events
+7. Implement EditorPanel — Monaco with custom theme, yggdrasil:open-file listener, language detection
+8. Implement ClaudePanel — detection, launch, polling, claude.ai fallback
+9. Verify: `pnpm tsc --noEmit` zero errors, `cargo check` zero errors, log ERRORS.md entries
+
+**Completion Notes (2026-02-24):**
+- `@monaco-editor/react` 4.7.0 installed — lazy-loaded via panel registry
+- Tauri `unstable` feature required for child webview embedding (D015b)
+- Child webviews use `Webview` class from `@tauri-apps/api/webview` — positioned over DOM elements via `getBoundingClientRect()` + `ResizeObserver`
+- FileTree→Editor communication via `window.dispatchEvent(new CustomEvent('yggdrasil:open-file'))` — zero imports between panels
+- Claude Desktop context switching not possible — no public API (logged in ERRORS.md)
+- Fallback to claude.ai webview works automatically after 5 failed detection polls
+- Monaco Editor theme `yggdrasil` defined inline matching CSS variable colors
+- `pnpm tsc --noEmit` passes with zero errors
+- `cargo check` passes with zero errors (full `cargo build` blocked by running dev instance file lock)
 
 ---
 

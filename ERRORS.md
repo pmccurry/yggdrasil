@@ -196,8 +196,140 @@ Never set a widget pollInterval below 5000ms without explicit user instruction.
 
 ---
 
-*No additional entries yet. Entries will be added as the project is built.*
-*Every bug fixed, every user correction, every non-obvious solution goes here.*
+## [claude-panel][onActivate] Claude Desktop does not expose a project-switching API
+
+**Date:** 2026-02-24
+**Milestone:** M4
+**Tags:** claude-panel, onActivate, claude-desktop
+
+**Problem:**
+ARCHITECTURE.md Section 7.4 specifies that workspace activation should hint Claude
+Desktop to the correct project path via `claudeDesktopProjectPath`. Investigation
+during M4 found that Claude Desktop does not expose a documented local HTTP API or
+IPC mechanism for programmatically switching the active project context.
+
+**Failed Approaches:**
+- Searching for Claude Desktop local server API documentation — none exists publicly.
+- Checking for REST endpoints on the Claude Desktop port — the port serves the web UI,
+  not a programmable API for context switching.
+
+**Solution:**
+Claude Desktop context shifting is best-effort in V1. The Claude panel shows the
+Claude Desktop interface (or falls back to claude.ai), but does not automatically
+switch the project context within Claude Desktop on workspace activation. The user
+must manually switch project context within Claude Desktop.
+
+**Implications:**
+- `claudeDesktopProjectPath` in `WorkspaceActivationHook` is unused in V1
+- If Claude Desktop adds an API in the future, this can be wired up without
+  architectural changes — the data path already exists in the schema
+- The fallback to claude.ai via Tauri Webview works regardless
+
+---
+
+## [webview][tauri] Child webviews require Tauri `unstable` feature flag
+
+**Date:** 2026-02-24
+**Milestone:** M4
+**Tags:** webview, tauri, claude-panel
+
+**Problem:**
+Embedding a child webview inside the main Tauri window (not as a separate OS window)
+requires the `unstable` feature flag on the `tauri` crate. Without it, `new Webview()`
+from `@tauri-apps/api/webview` fails with a 400 error.
+
+**Failed Approaches:**
+- Using `WebviewWindow` (creates a separate floating OS window — defeats the purpose
+  of embedded panels).
+
+**Solution:**
+Added `features = ["unstable"]` to the tauri dependency in Cargo.toml. Child webviews
+are created via `new Webview(getCurrentWindow(), label, { url, x, y, width, height })`
+and positioned over placeholder DOM elements using `getBoundingClientRect()` +
+`ResizeObserver`.
+
+**Implications:**
+- The `unstable` feature flag must remain on the tauri crate for webview/claude panels
+- Child webviews overlay the DOM — they are native OS webviews positioned over
+  transparent placeholder divs, not rendered inside the DOM
+- Z-ordering can be tricky — webviews always render above DOM content
+- On panel unmount, `webview.close()` must be called to clean up the native resource
+
+---
+
+## [claude-panel][windows] Claude Desktop launch and detection — multiple corrections
+
+**Date:** 2026-02-24
+**Milestone:** M4
+**Tags:** claude-panel, windows, user-correction
+
+**Problem (1 — launch):**
+`cmd /c start "" "claude"` resolves to Claude Code CLI in PATH, not Claude Desktop.
+
+**Problem (2 — detection):**
+TCP port detection on port 5173 is wrong — Claude Desktop is an Electron app that
+does not expose a local HTTP server. Port 5173 is Vite's default.
+
+**Problem (3 — fallback webview race condition):**
+`createWebview()` called synchronously after `setState('fallback')` fails because
+React hasn't re-rendered the `containerRef` div into the DOM yet.
+
+**Failed Approaches:**
+- `cmd /c start "" "claude"` — resolves to Claude Code CLI
+- `read_dir` on `WindowsApps` — permission denied
+- `TcpStream::connect_timeout` on port 5173 — Claude Desktop doesn't serve HTTP
+- Synchronous `createWebview()` after `setState()` — React race condition
+
+**Solution:**
+- **Launch:** PowerShell `Get-AppxPackage` + `shell:AppsFolder\{AUMID}!App`
+- **Detection:** `tasklist /FI "IMAGENAME eq Claude.exe"` for process existence
+- **Webview:** Separate `useEffect` watching `webviewTarget` state — React renders
+  the container div first, then the effect creates the webview
+- **UX:** Always embeds claude.ai since Desktop doesn't serve localhost web UI.
+  Added "Open claude.ai" button to skip detection entirely.
+
+**Implications:**
+- Never use TCP port detection for Electron apps — check process existence
+- Never call DOM-dependent async code synchronously after setState — use useEffect
+- Windows Store apps must be launched via AUMID, not exe path or shell name
+
+---
+
+## [webview][panel-container] Native webview blocks PanelPicker — hide() doesn't prevent input capture
+
+**Date:** 2026-02-24
+**Milestone:** M4
+**Tags:** webview, panel-container, tauri, react, windows
+
+**Problem:**
+When a native Tauri webview is active (Claude or Webview panel), clicking the "swap"
+button opens the PanelPicker DOM overlay — but the native WebView2 control captures
+all pointer events in its area, making the picker buttons unclickable even when the
+picker DOM overlay is rendered.
+
+**Failed Approaches:**
+- `webviewRef.current.hide()` — Tauri's `hide()` on child webviews does not prevent
+  the native WebView2 control from capturing mouse/pointer events on Windows. The
+  webview may be visually hidden but still intercepts clicks in its original area.
+- Using React state (`pickerOpen`) in `mouseLeave` handler — stale due to batching
+  (secondary issue, fixed with `useRef` but didn't solve the core input capture problem)
+
+**Solution:**
+Replace `hide()`/`show()` with `setPosition(new LogicalPosition(-10000, -10000))` to
+physically move the webview off-screen when the picker opens. On picker close, restore
+position from `containerRef.current.getBoundingClientRect()`. `setPosition()` is known
+to work reliably because it's used in the ResizeObserver for continuous repositioning.
+
+Also added `pickerOpenRef` (useRef) in PanelContainer to prevent `mouseLeave` from
+dispatching `picker-close` while the picker is open (React state batching secondary fix).
+
+**Implications:**
+- Never use `hide()`/`show()` for Tauri child webviews on Windows when you need to
+  prevent input capture — use `setPosition()` to move off-screen instead
+- `setPosition()` is the only reliable method to prevent native WebView2 from capturing
+  pointer events — it physically removes the control from the clickable area
+- The ResizeObserver in each panel already handles position restoration on resize, so
+  the off-screen approach integrates cleanly
 
 ---
 

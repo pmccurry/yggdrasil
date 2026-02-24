@@ -1,0 +1,96 @@
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--bg-surface);
+}
+
+.urlBar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background-color: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-subtle);
+  min-height: 28px;
+}
+
+.urlDots {
+  display: flex;
+  gap: 4px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dotRed {
+  background-color: var(--status-error);
+  opacity: 0.6;
+}
+
+.dotYellow {
+  background-color: var(--status-warn);
+  opacity: 0.6;
+}
+
+.dotGreen {
+  background-color: var(--status-ok);
+  opacity: 0.6;
+}
+
+.urlInput {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--text-primary);
+  background-color: var(--bg-base);
+  border: 1px solid var(--border-subtle);
+  border-radius: 3px;
+  padding: 2px 8px;
+  outline: none;
+}
+
+.urlInput:focus {
+  border-color: var(--accent-border);
+}
+
+.urlInput::placeholder {
+  color: var(--text-faint);
+}
+
+.webviewArea {
+  flex: 1;
+  position: relative;
+}
+
+.emptyState {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-md);
+}
+
+.emptyIcon {
+  font-size: 24px;
+  opacity: 0.4;
+}
+
+.emptyLabel {
+  color: var(--text-secondary);
+}
+
+.emptyHint {
+  font-size: var(--font-size-xs);
+  color: var(--text-faint);
+}

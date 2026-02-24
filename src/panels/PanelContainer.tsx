@@ -16,6 +16,16 @@ function PanelContainer({ panelType, panelProps, onSwapPanel }: PanelContainerPr
   const entry = PANEL_REGISTRY[panelType];
   const PanelComponent = entry.component;
 
+  function openPicker() {
+    setPickerOpen(true);
+    window.dispatchEvent(new CustomEvent('yggdrasil:picker-open', { detail: { panelId: panelProps.panelId } }));
+  }
+
+  function closePicker() {
+    setPickerOpen(false);
+    window.dispatchEvent(new CustomEvent('yggdrasil:picker-close', { detail: { panelId: panelProps.panelId } }));
+  }
+
   return (
     <div style={{
       width: '100%', height: '100%',
@@ -25,7 +35,8 @@ function PanelContainer({ panelType, panelProps, onSwapPanel }: PanelContainerPr
       borderRight: '1px solid var(--border-subtle)',
     }}>
       {/* Panel Header */}
-      <div style={{
+      <div
+        style={{
         height: 'var(--panel-header-height)',
         minHeight: 'var(--panel-header-height)',
         display: 'flex',
@@ -35,6 +46,8 @@ function PanelContainer({ panelType, panelProps, onSwapPanel }: PanelContainerPr
         backgroundColor: 'var(--bg-elevated)',
         borderBottom: '1px solid var(--border-subtle)',
         userSelect: 'none',
+        position: 'relative',
+        zIndex: 10,
       }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: '6px',
@@ -46,7 +59,7 @@ function PanelContainer({ panelType, panelProps, onSwapPanel }: PanelContainerPr
           <span>{entry.label}</span>
         </div>
         <button
-          onClick={() => setPickerOpen(true)}
+          onClick={openPicker}
           title="Change panel type"
           style={{
             background: 'none',
@@ -82,12 +95,12 @@ function PanelContainer({ panelType, panelProps, onSwapPanel }: PanelContainerPr
           <PanelPicker
             currentType={panelType}
             onSelect={(newType) => {
-              setPickerOpen(false);
+              closePicker();
               if (newType !== panelType) {
                 onSwapPanel(newType);
               }
             }}
-            onClose={() => setPickerOpen(false)}
+            onClose={closePicker}
           />
         )}
       </div>

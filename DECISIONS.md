@@ -480,6 +480,95 @@ It is the same library used by wezterm, a production terminal emulator.
 
 ---
 
+## D015 — FileTree→Editor communication via custom DOM events
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+FileTree and Editor panels communicate via custom DOM events on the window object.
+FileTree dispatches `window.dispatchEvent(new CustomEvent('yggdrasil:open-file', { detail: { path } }))`.
+Editor listens via `window.addEventListener('yggdrasil:open-file', handler)`.
+
+**Alternatives Considered:**
+- Shared React Context (e.g., EditorContext) — would require both panels to import
+  from a shared context module. While technically not violating the panel contract
+  (context is in `src/store/`), it creates tight coupling between two specific panel
+  types and adds state management overhead.
+- URL hash or query params — fragile, not type-safe, inappropriate for internal events.
+- Redux or Zustand shared store — rejected per D003, no external state library in V1.
+
+**Rationale:**
+Custom DOM events require zero shared state, zero imports between panels, and zero
+additional infrastructure. FileTree dispatches; Editor listens. If neither panel is
+mounted, the events are simply ignored. This is the simplest mechanism that fully
+respects the panel contract (ARCHITECTURE.md Section 7.1).
+
+**Implications:**
+Any future panel that wants to open files in the Editor can dispatch the same event.
+The event is a public contract: `CustomEvent<{ path: string }>` on `'yggdrasil:open-file'`.
+Editor panel must clean up the event listener on unmount.
+
+---
+
+## D015b — Webview embedding: Tauri child Webview with `unstable` feature
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Claude Code
+
+**Decision:**
+Webview and Claude panels use Tauri's child `Webview` API (from `@tauri-apps/api/webview`)
+to embed native OS webviews inside the main application window. This requires the
+`unstable` feature flag on the `tauri` crate in Cargo.toml.
+
+**Alternatives Considered:**
+- `WebviewWindow` (from `@tauri-apps/api/webviewWindow`) — creates a separate OS window.
+  This is stable API but defeats the panel-based UI: the webview would float as a
+  separate window rather than rendering inside the panel grid.
+- HTML iframe — blocked by X-Frame-Options on most sites (see ERRORS.md pre-logged risk).
+  Non-negotiable rejection per ARCHITECTURE.md Section 14.1.
+
+**Rationale:**
+The panel architecture requires webviews to render inside panel slots, not as separate
+windows. The child `Webview` API positions a native OS webview over a placeholder DOM
+element using `getBoundingClientRect()` and `ResizeObserver`. This provides true
+embedding within the panel grid while bypassing X-Frame-Options.
+
+**Implications:**
+- `tauri = { features = ["unstable"] }` must remain in Cargo.toml
+- Webviews overlay the DOM at a higher z-level — they are not DOM elements
+- `ResizeObserver` is required to keep webview position in sync with layout changes
+- `webview.close()` must be called on unmount to release native resources
+
+---
+
+## D016 — Filesystem via custom Rust commands, not plugin-fs
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Filesystem operations (read_directory, read_file) are implemented as custom Rust
+commands in `src-tauri/src/commands/filesystem.rs`, not via `@tauri-apps/plugin-fs`.
+
+**Alternatives Considered:**
+- `@tauri-apps/plugin-fs` — official Tauri plugin for filesystem access. Rejected
+  because it requires scope configuration (allowed paths), returns generic file
+  system types, and adds a dependency for operations that are simple with `std::fs`.
+  Custom Rust commands give exact control over the return shape (FileNode struct).
+
+**Rationale:**
+The FileTree panel needs a specific response shape: `Vec<FileNode>` with name, path,
+and is_directory fields, sorted directories-first then alphabetical. This is trivial
+with `std::fs::read_dir` and a custom struct. The plugin-fs approach would require
+post-processing on the TypeScript side and adds configuration overhead (scope patterns).
+
+**Implications:**
+`std::fs` is used directly in the Rust backend. No `@tauri-apps/plugin-fs` dependency.
+File paths are validated on the Rust side before reading.
+
+---
+
 *End of DECISIONS.md*
 *Version 1.0 — Created 2026-02-24*
 *Entries are never deleted. Superseded entries are marked [SUPERSEDED].*

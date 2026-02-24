@@ -11,6 +11,11 @@ pub fn run() {
             commands::shell::write_to_shell,
             commands::shell::resize_shell,
             commands::shell::kill_shell,
+            commands::filesystem::read_directory,
+            commands::filesystem::read_file,
+            commands::git::get_git_status,
+            commands::claude::detect_claude_desktop,
+            commands::claude::launch_claude_desktop,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

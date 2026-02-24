@@ -48,8 +48,8 @@ Every plan journal entry uses one of these status tags:
 | M1 — Terminal Panel | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
 | M2 — Shell & Layout | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
 | M3 — Workspace Persistence | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
-| M4 — Remaining Panels | `[IN PROGRESS]` | 2026-02-24 | — |
-| M5 — Status Widgets | `[PLANNED]` | — | — |
+| M4 — Remaining Panels | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
+| M5 — Status Widgets | `[IN PROGRESS]` | 2026-02-24 | — |
 | M6 — Polish & V1 Close | `[PLANNED]` | — | — |
 
 ---
@@ -684,7 +684,38 @@ the Rust implementation — call the same `get_git_status` command.
 
 ### M5 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### Plan Entry: M5 Status Widgets — 2026-02-24
+**Status:** `[COMPLETED]`
+
+**Design Decision:**
+- Widget states are ephemeral, not persisted. `WidgetConfig` lives in WorkspaceContext
+  (persisted). `WidgetState` lives in `useWidgets` hook local state — NOT in
+  WorkspaceContext. Prevents transient polling data from triggering config auto-save.
+
+**Steps:**
+1. Fix `git.rs`: add `creation_flags(0x08000000)` to prevent console window flash on Windows
+2. Create `docker.rs`: `docker_inspect` command with creation_flags, error prefix distinction
+3. Update `mod.rs` and `lib.rs`: register docker module and command
+4. Create `src/shell/docker.ts`: TypeScript wrapper for `docker_inspect`
+5. Implement poll functions: `pollDocker`, `pollGit`, `pollGeneric` in widget directories
+6. Implement `WIDGET_REGISTRY` in `src/widgets/registry.ts`
+7. Implement `useWidgets` hook: polling, debounce on workspace switch, cleanup
+8. Implement `WidgetChip` component: status dot with pulse animation, label + value
+9. Add `@keyframes widget-pulse` to `src/theme/variables.css`
+10. Update `StatusBar.tsx`: wire `useWidgets` + `WidgetChip`, replace placeholders
+11. Verify: `pnpm tsc --noEmit` zero errors, `cargo check` zero errors
+
+**Completion Notes (2026-02-24):**
+- `creation_flags(0x08000000)` added to git.rs and docker.rs — prevents console window flash on Windows
+- Docker command uses error prefix (`docker_not_installed:` vs `docker_error:`) for frontend distinction
+- `useWidgets` hook: 500ms debounce on workspace switch, min 5000ms poll interval, mountedRef for cleanup safety
+- WidgetChip: CSS-variable-driven status dot colors, `widget-pulse` keyframe animation on `ok` status
+- Widget states are ephemeral (local to useWidgets) — not persisted in WorkspaceContext
+- WIDGET_REGISTRY mirrors PANEL_REGISTRY pattern: `Record<WidgetType, WidgetPollFn>`
+- `pnpm tsc --noEmit` passes with zero errors
+- `cargo check` passes with zero errors
+- D017 logged: Docker widget polling via CLI
+- ARCHITECTURE.md Section 12 updated: added `docker.rs` and `docker.ts`
 
 ---
 

@@ -569,6 +569,35 @@ File paths are validated on the Rust side before reading.
 
 ---
 
+## D017 — Docker widget polling via CLI docker inspect
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Docker container status is polled via `docker inspect {name} --format={{.State.Status}}` CLI
+invocation. A new Rust command `docker_inspect` lives in `src-tauri/src/commands/docker.rs`
+and a TypeScript wrapper in `src/shell/docker.ts`. Both new files are additive to the
+ARCHITECTURE.md Section 12 file structure.
+
+**Alternatives Considered:**
+- Docker Engine API (HTTP) — requires exposing the Docker daemon TCP socket or named pipe.
+  Adds complexity (HTTP client in Rust, authentication) for no benefit in a local desktop tool.
+- docker-compose ps — only works for compose-managed containers, not general purpose.
+
+**Rationale:**
+The Docker CLI is the simplest, most reliable way to query container status on a local machine.
+`creation_flags(0x08000000)` prevents console window flash on Windows. Error prefixes
+(`docker_not_installed:` vs `docker_error:`) allow the frontend to distinguish "Docker not
+installed" (idle state) from "Docker error" (error state).
+
+**Implications:**
+- `src-tauri/src/commands/docker.rs` and `src/shell/docker.ts` are new files added to the
+  file structure
+- Docker must be in PATH for the widget to function; if not, widget shows idle "No Docker"
+
+---
+
 *End of DECISIONS.md*
 *Version 1.0 — Created 2026-02-24*
 *Entries are never deleted. Superseded entries are marked [SUPERSEDED].*

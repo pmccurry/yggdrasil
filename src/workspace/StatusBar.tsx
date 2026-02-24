@@ -1,7 +1,10 @@
 import { useWorkspaceContext } from '../store/WorkspaceContext';
+import { useWidgets } from '../hooks/useWidgets';
+import WidgetChip from '../widgets/WidgetChip';
 
 function StatusBar() {
   const { activeWorkspace } = useWorkspaceContext();
+  const widgetStates = useWidgets(activeWorkspace?.widgets ?? []);
 
   if (!activeWorkspace) return null;
 
@@ -44,28 +47,25 @@ function StatusBar() {
         </span>
       </div>
 
-      {/* Right: widget placeholders — real widgets in M5 */}
+      {/* Right: live widget chips */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         gap: '8px',
       }}>
-        {activeWorkspace.widgets.map((widget) => (
-          <span
-            key={widget.id}
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 'var(--font-size-xs)',
-              color: 'var(--text-muted)',
-              backgroundColor: 'var(--bg-surface)',
-              padding: '2px 8px',
-              borderRadius: '3px',
-              border: '1px solid var(--border-subtle)',
-            }}
-          >
-            {widget.label}
-          </span>
-        ))}
+        {activeWorkspace.widgets.map((widget) => {
+          const state = widgetStates.get(widget.id) ?? {
+            status: 'loading' as const,
+            value: '...',
+          };
+          return (
+            <WidgetChip
+              key={widget.id}
+              label={widget.label}
+              state={state}
+            />
+          );
+        })}
       </div>
     </div>
   );

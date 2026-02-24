@@ -1,11 +1,19 @@
 use std::collections::HashMap;
 use std::process::Command;
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 #[tauri::command]
 pub async fn get_git_status(repo_path: String) -> Result<HashMap<String, String>, String> {
-    let output = Command::new("git")
-        .args(["status", "--porcelain"])
-        .current_dir(&repo_path)
+    let mut cmd = Command::new("git");
+    cmd.args(["status", "--porcelain"])
+        .current_dir(&repo_path);
+
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
+
+    let output = cmd
         .output()
         .map_err(|e| format!("Failed to run git status: {}", e))?;
 

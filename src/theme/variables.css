@@ -33,3 +33,8 @@
   --panel-header-height:   36px;
   --planning-drawer-width: 32px;
 }
+
+@keyframes widget-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

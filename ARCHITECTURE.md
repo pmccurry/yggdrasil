@@ -740,6 +740,9 @@ export async function readFile(path: string): Promise<string>
 // src/shell/git.ts
 export async function getGitStatus(repoPath: string): Promise<GitStatus>
 
+// src/shell/docker.ts
+export async function dockerInspect(containerName: string): Promise<string>
+
 // src/shell/workspace.ts
 export async function loadConfig(): Promise<AppConfig>
 export async function saveConfig(config: AppConfig): Promise<void>
@@ -772,6 +775,7 @@ Yggdrasil/
 │   │   │   ├── shell.rs
 │   │   │   ├── filesystem.rs
 │   │   │   ├── git.rs
+│   │   │   ├── docker.rs
 │   │   │   ├── claude.rs
 │   │   │   └── workspace.rs
 │   │   └── types.rs
@@ -795,6 +799,7 @@ Yggdrasil/
 │   │   ├── terminal.ts
 │   │   ├── filesystem.ts
 │   │   ├── git.ts
+│   │   ├── docker.ts
 │   │   ├── workspace.ts
 │   │   └── claude.ts
 │   │

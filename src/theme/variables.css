@@ -1,0 +1,35 @@
+:root {
+  --bg-base:        #0a0a0f;
+  --bg-surface:     #0d0d14;
+  --bg-elevated:    #13131f;
+  --bg-overlay:     #1a1a2e;
+
+  --border-subtle:  #1a1a2e;
+  --border-default: #1e1e30;
+
+  --text-primary:   #e5e7eb;
+  --text-secondary: #9ca3af;
+  --text-muted:     #6b7280;
+  --text-faint:     #374151;
+
+  --status-ok:      #00ff88;
+  --status-warn:    #fbbf24;
+  --status-error:   #f87171;
+  --status-idle:    #374151;
+
+  /* Overridden per workspace at runtime */
+  --accent:         #00ff88;
+  --accent-dim:     color-mix(in srgb, var(--accent) 18%, transparent);
+  --accent-border:  color-mix(in srgb, var(--accent) 30%, transparent);
+
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+  --font-size-xs: 9px;
+  --font-size-sm: 10px;
+  --font-size-md: 11px;
+  --font-size-lg: 13px;
+
+  --sidebar-width:         190px;
+  --topbar-height:         42px;
+  --panel-header-height:   36px;
+  --planning-drawer-width: 32px;
+}

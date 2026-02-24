@@ -1,0 +1,448 @@
+# DECISIONS.md
+# Yggdrasil — Decision Rationale Log
+# Last Updated: 2026-02-24
+# Version: 1.0
+
+---
+
+## PURPOSE
+
+This file logs every major decision made in the Yggdrasil project — the choice,
+the alternatives considered, and the rationale for why this path was taken.
+
+Claude Code reads this file at the start of every session. Before suggesting
+any architectural change, Claude Code checks this file. If the decision has
+already been made, it is honored. Settled decisions are not relitigated unless
+the user explicitly instructs otherwise.
+
+When a decision changes, the old entry is marked `[SUPERSEDED]` and a new
+entry is written. History is preserved. Nothing is deleted.
+
+---
+
+## STATUS TAGS
+
+| Tag | Meaning |
+|---|---|
+| `[ACTIVE]` | This decision is current and in effect |
+| `[SUPERSEDED]` | This decision was changed — see the replacement entry |
+| `[DEFERRED]` | Decision not yet made — noted for future resolution |
+
+---
+
+## ENTRY FORMAT
+
+```
+## D{NNN} — {Decision title}
+**Date:** YYYY-MM-DD
+**Status:** [ACTIVE]
+**Made By:** {User / Claude Code / Joint}
+
+**Decision:**
+{What was decided}
+
+**Alternatives Considered:**
+{What else was evaluated and why it was not chosen}
+
+**Rationale:**
+{Why this choice was made}
+
+**Implications:**
+{What this decision affects downstream}
+```
+
+---
+
+## DECISIONS LOG
+
+---
+
+## D001 — Desktop shell: Tauri over Electron
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Use Tauri v2 as the desktop shell framework.
+
+**Alternatives Considered:**
+- Electron — mature, widely used, large ecosystem. Rejected because it ships
+  a full Chromium instance per app, resulting in 100MB+ binary size and high
+  baseline memory usage. Unacceptable for a lightweight developer tool.
+- NW.js — similar to Electron, same weight concerns.
+- Native Win32/WPF — too low-level, no web frontend benefit, far higher
+  development complexity for no meaningful gain.
+
+**Rationale:**
+Tauri produces a native Windows binary that uses the OS's built-in WebView2
+renderer (already present on Windows 10/11). Binary size is ~10MB vs Electron's
+~150MB. Memory footprint is significantly lower. Rust backend provides reliable
+native OS interaction for shell spawning, filesystem, and dialog APIs.
+
+**Implications:**
+Frontend is React + TypeScript rendered in WebView2. All OS interaction goes
+through Tauri invoke commands wrapped in `src/shell/`. The Rust backend is
+intentionally minimal — it is a thin command executor, not a business logic layer.
+
+---
+
+## D002 — Frontend framework: React over alternatives
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Use React 18 as the frontend framework.
+
+**Alternatives Considered:**
+- Svelte — lighter runtime, excellent performance. Rejected because the panel
+  component architecture (typed containers, lazy registry, context propagation)
+  maps more naturally to React's component model and ecosystem.
+- Vue 3 — solid option, rejected for same ecosystem/familiarity reasons.
+- Vanilla JS — rejected immediately. The panel registry, context system, and
+  Suspense/lazy boundaries all benefit significantly from React's abstractions.
+
+**Rationale:**
+React's component model is a natural fit for the "panel is a typed container"
+architecture. React.lazy() and Suspense provide exactly the code-splitting
+behavior needed for Monaco and other heavy panels. React Context + useReducer
+is sufficient for V1 state management without additional libraries.
+
+**Implications:**
+All UI is React components. State management is React Context. No Vue, no Svelte,
+no mixing of frameworks. TypeScript is used throughout.
+
+---
+
+## D003 — State management: React Context + useReducer only
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Use React Context with useReducer for global state. No external state library.
+
+**Alternatives Considered:**
+- Redux Toolkit — powerful, well-tested. Rejected as over-engineered for V1 scope.
+  The boilerplate cost is not justified by the state complexity.
+- Zustand — lighter than Redux, good API. Rejected because React Context is
+  sufficient for V1 and adding a dependency for something the platform provides
+  natively violates the simplicity principle.
+- Jotai / Recoil — atomic state models. Rejected for same reasons.
+
+**Rationale:**
+V1 has two contexts: WorkspaceContext (workspace list, active workspace, layout)
+and AppContext (theme, drawer state). This is not complex state. React Context +
+useReducer handles it cleanly without dependencies. If V2 state complexity grows
+significantly, this decision can be revisited.
+
+**Implications:**
+No state management libraries in package.json. If state management needs grow
+beyond what Context handles cleanly, a new decision entry must be written
+before introducing any library.
+
+---
+
+## D004 — Styling: CSS Modules + CSS Custom Properties
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Use CSS Modules for component-scoped styles and CSS Custom Properties for the
+global design system. No CSS-in-JS library.
+
+**Alternatives Considered:**
+- Tailwind CSS — utility-first, fast to write. Rejected because it conflicts
+  with the dynamic accent color system (CSS custom property override per workspace
+  cannot be expressed cleanly in utility classes).
+- styled-components / Emotion — CSS-in-JS. Rejected for runtime overhead and
+  because the dynamic theming requirement is solved more cleanly with CSS variables.
+- Plain global CSS — rejected for lack of component scoping.
+
+**Rationale:**
+CSS Custom Properties solve the dynamic per-workspace accent color requirement
+elegantly — one property override on the document root updates every accent-colored
+element instantly without React re-renders. CSS Modules provide component scoping
+without runtime cost. Zero dependencies, maximum performance.
+
+**Implications:**
+All global design tokens live in `src/theme/variables.css`. No hardcoded hex
+values in component files. Per-workspace accent color is applied via:
+`document.documentElement.style.setProperty('--accent', workspace.accentColor)`
+
+---
+
+## D005 — Typography: JetBrains Mono exclusively
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Use JetBrains Mono as the sole typeface across the entire application.
+No sans-serif, no serif, no system fonts.
+
+**Alternatives Considered:**
+- Mixed type system (sans-serif for UI, mono for code) — rejected because
+  it weakens the terminal-native aesthetic and creates visual inconsistency.
+- System fonts — rejected for visual inconsistency across Windows installations.
+- Other mono fonts (Fira Code, Cascadia Code) — listed as fallbacks only.
+  JetBrains Mono is the primary choice for its ligature support and readability.
+
+**Rationale:**
+Yggdrasil is a developer tool with a deliberate terminal-native aesthetic.
+Monospace everywhere reinforces this identity. The visual consistency of a
+single typeface across UI chrome, panel headers, status widgets, and code
+content creates a cohesive, intentional design.
+
+**Implications:**
+`--font-mono` CSS variable is used everywhere. No other font imports.
+JetBrains Mono is loaded via Google Fonts or bundled — evaluate at M0.
+Cascadia Code and Fira Code are CSS fallbacks in case JetBrains Mono fails to load.
+
+---
+
+## D006 — Persistence: Tauri Store Plugin (local JSON only)
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Use Tauri Store Plugin for persistence. Config is stored as a single JSON file
+in the OS user data directory. No database, no cloud sync, no server.
+
+**Alternatives Considered:**
+- SQLite via Tauri — over-engineered for a config file with < 10 workspaces.
+  Query overhead, schema migrations, and connection management add complexity
+  with no benefit at this data scale.
+- localStorage / IndexedDB — web storage APIs, not appropriate for a native
+  desktop app with a filesystem.
+- Custom JSON read/write via Tauri fs — viable but Tauri Store Plugin handles
+  file location, serialization, and atomic writes correctly out of the box.
+
+**Rationale:**
+The AppConfig is a small JSON document. It is read once on startup and written
+on mutation. Tauri Store Plugin is purpose-built for this exact use case, handles
+the OS-appropriate file location automatically, and requires no schema management.
+
+**Implications:**
+Config lives at `C:\Users\{username}\AppData\Roaming\Yggdrasil\config.json`
+on Windows. All reads come from context (in-memory). All writes go to disk
+immediately via useEffect on state change. No save button exists or will exist.
+
+---
+
+## D007 — Terminal: xterm.js with Tauri PTY
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Use xterm.js for terminal rendering with Tauri's shell API for process management.
+
+**Alternatives Considered:**
+- node-pty — Node.js PTY library. Not applicable in a Tauri context where there
+  is no Node.js runtime in production.
+- Custom terminal emulator — rejected immediately. xterm.js is what VS Code uses.
+  There is no reason to build what already exists at production quality.
+- Embedded OS terminal (Windows Terminal) — cannot be embedded inside a Tauri
+  webview. External windows defeat the purpose of Yggdrasil.
+
+**Rationale:**
+xterm.js is the industry standard embeddable terminal emulator. It has proven
+Tauri compatibility and handles ANSI codes, color, and input correctly. VS Code's
+terminal is built on it. Tauri's shell API handles process spawning, PTY management,
+and output streaming on the Rust side.
+
+**Implications:**
+If PTY is not achievable on Windows (see ERRORS.md pre-logged risk), the fallback
+is command-execution mode. Any fallback decision requires a new DECISIONS.md entry.
+
+---
+
+## D008 — Code editor: Monaco Editor
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Use Monaco Editor for the code editor panel.
+
+**Alternatives Considered:**
+- CodeMirror 6 — lighter, more modular. Rejected because Monaco provides the
+  exact VS Code editing experience the design calls for, including familiar
+  keyboard shortcuts, IntelliSense scaffolding, and consistent syntax highlighting.
+- Ace Editor — older, less actively maintained. Rejected.
+- VS Code extension API integration — too complex for V1. Deferred to V3 consideration.
+
+**Rationale:**
+Monaco is the VS Code editor engine extracted as an embeddable library. Since
+VS Code is the primary design inspiration for Yggdrasil's editor panel, Monaco
+is the natural and correct choice. The heavy bundle size is mitigated by React.lazy().
+
+**Implications:**
+Monaco is always loaded via React.lazy(). Never import Monaco eagerly.
+Verify at M4 that Monaco chunks do not appear in initial network requests.
+
+---
+
+## D009 — Claude integration: Desktop app, not API
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+The Claude panel integrates with Claude Desktop locally. No Claude API integration in V1.
+
+**Alternatives Considered:**
+- Claude API (Anthropic SDK) — per-token billing. Rejected for V1 because the
+  user has a Pro/Max subscription to Claude Desktop. Using the API for a daily
+  driver tool that runs Claude constantly would accumulate significant cost with
+  no benefit over the subscription.
+- claude.ai webview only — viable fallback but not primary. The Desktop
+  integration is preferred because it is the user's existing workflow.
+
+**Rationale:**
+Claude Desktop uses the user's existing subscription. No API key, no per-token
+cost, no billing management. Claude Desktop runs a local server when active —
+the panel connects to it via Tauri WebviewWindow (native OS webview, bypasses
+X-Frame-Options). Claude.ai webview is the automatic fallback if Desktop is
+not running or detectable.
+
+**Implications:**
+ClaudeSettings uses `mode: 'desktop' | 'webview'`. Desktop mode is the default.
+Claude API integration is a V2 consideration — see IMPLEMENTATION.md Appendix A.
+If API integration is added in V2, it requires a new DECISIONS.md entry and
+schema additions to ClaudeSettings.
+
+---
+
+## D010 — Package manager: pnpm
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Use pnpm as the package manager.
+
+**Alternatives Considered:**
+- npm — universal but slower, less efficient disk usage, non-strict dependency
+  resolution allows phantom dependencies.
+- yarn — faster than npm but pnpm is faster and stricter.
+- bun — fast but less mature for Tauri projects at time of decision.
+
+**Rationale:**
+pnpm is faster than npm and yarn, uses a content-addressable store for efficient
+disk usage, and enforces strict dependency resolution that prevents phantom
+dependency bugs. It is the correct choice for a project that values correctness
+and efficiency.
+
+**Implications:**
+All install commands use pnpm. Lockfile is `pnpm-lock.yaml`. Do not use npm
+or yarn install commands in any session. If a dependency requires npm, log it
+in ERRORS.md and find a pnpm-compatible approach.
+
+---
+
+## D011 — V1 layout: Fixed three-column, no resizing
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+V1 layout is a fixed three-column panel grid. No drag-to-resize, no dynamic
+panel count, no layout mode switching.
+
+**Alternatives Considered:**
+- Resizable panels from day one — technically straightforward with a resize
+  library. Rejected because it adds complexity to the layout data schema
+  (panel size weights) before the foundation is stable.
+- Flexible panel count (1, 2, 3, or 4 panels) — rejected for same reason.
+  The schema supports it in theory but the UI complexity is a V2 concern.
+
+**Rationale:**
+A fixed three-panel layout delivers the core value of Yggdrasil — project context,
+clean layout, panel switching — without layout management complexity. Once V1
+is stable and in daily use, the right resizing behavior becomes clearer from
+actual usage rather than speculation.
+
+**Implications:**
+WorkspaceLayout.panels is typed as a tuple of exactly three PanelSlots.
+Panel resizing and dynamic panel count are V2 features — see IMPLEMENTATION.md
+Appendix A. The layout grid uses equal-width flex columns in V1.
+
+---
+
+## D012 — Planning Drawer: V1 placeholder only
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+The Planning Drawer (inspired by Antigravity's planning panel) is included in
+the V1 layout as a collapsed toggle placeholder only. No content is implemented.
+
+**Alternatives Considered:**
+- Full Planning Drawer in V1 — rejected. The content (workspace notes, milestone
+  context from IMPLEMENTATION.md, session planning) requires design work that
+  would delay V1. The layout space must be reserved now to avoid surgery later.
+- Omit Planning Drawer entirely until V2 — rejected. If the layout does not
+  account for the drawer's collapsed width from day one, adding it in V2 requires
+  layout restructuring that risks introducing layout bugs.
+
+**Rationale:**
+Reserving the layout space costs nothing. Building the content incorrectly costs
+time. The right tradeoff is: correct layout structure in V1, real content in V2.
+
+**Implications:**
+`--planning-drawer-width: 32px` CSS variable is defined in V1 for the collapsed
+toggle. PlanningDrawer.tsx renders only the toggle button in V1. The toggle
+updates AppContext planningDrawerOpen state but opening reveals no content in V1.
+
+---
+
+*End of initial decisions log.*
+*New entries are appended below as decisions are made during implementation.*
+
+---
+
+## D013 — Workspace activation hook: onActivate state injection
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Each workspace has an onActivate hook that fires every time that workspace becomes
+active. It contains: terminalStartupCommands (shell commands run on terminal mount),
+environmentVariables (injected into the terminal shell environment), and
+claudeDesktopProjectPath (hints Claude Desktop to the correct project folder).
+
+**Alternatives Considered:**
+- Manual navigation each time — the current painful status quo. Rejected because
+  eliminating this friction is a core Yggdrasil value proposition.
+- Persistent shell sessions that survive workspace switching — rejected because
+  it violates the panel lifecycle rule (panels unmount and clean up on switch).
+  A persistent shell that doesn't belong to the active workspace is a resource leak.
+- OS-level environment switching — too invasive, affects other applications running
+  outside Yggdrasil. Rejected in favor of shell-scoped injection.
+
+**Rationale:**
+Workspace switching should shift the entire development context, not just the
+visual layout. A developer switching from Ratatoskr to Elementals should not need
+to cd, re-point Claude Code, or re-orient. The onActivate hook makes this automatic.
+The implementation is simple — startup commands are just strings written to the shell
+after spawn. Environment variables are passed to the Tauri shell spawn call.
+
+**Implications:**
+WorkspaceActivationHook interface added to workspace.ts.
+TerminalSettings gains a startupCommands field.
+WorkspaceContext SWITCH_WORKSPACE action fires the hook.
+defaultOnActivate() helper generates sensible defaults for new workspaces.
+The cd to projectRoot is always the first startupCommand and is non-removable.
+Claude Desktop context shifting is best-effort pending M4 API investigation.
+
+---
+
+*End of DECISIONS.md*
+*Version 1.0 — Created 2026-02-24*
+*Entries are never deleted. Superseded entries are marked [SUPERSEDED].*

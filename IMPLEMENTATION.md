@@ -46,8 +46,8 @@ Every plan journal entry uses one of these status tags:
 |---|---|---|---|
 | M0 — Scaffold | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
 | M1 — Terminal Panel | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
-| M2 — Shell & Layout | `[IN PROGRESS]` | 2026-02-24 | — |
-| M3 — Workspace Persistence | `[PLANNED]` | — | — |
+| M2 — Shell & Layout | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
+| M3 — Workspace Persistence | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
 | M4 — Remaining Panels | `[PLANNED]` | — | — |
 | M5 — Status Widgets | `[PLANNED]` | — | — |
 | M6 — Polish & V1 Close | `[PLANNED]` | — | — |
@@ -346,7 +346,7 @@ switches workspaces correctly. Content comes later.
 ### M2 — Plan Journal
 
 #### Plan Entry: M2 Shell & Layout — 2026-02-24
-**Status:** `[IN PROGRESS]`
+**Status:** `[COMPLETED]`
 
 **Approach:**
 - Build bottom-up: contexts first, then components, then assembly
@@ -377,20 +377,20 @@ switches workspaces correctly. Content comes later.
 
 ### Definition of Done
 
-- [ ] AppConfig loads from disk on startup via Tauri Store Plugin
-- [ ] If no config exists on first launch, a sensible default config is written to disk
-- [ ] WorkspaceContext initializes from loaded AppConfig (not hardcoded data)
-- [ ] Every WorkspaceContext mutation writes to disk immediately via useEffect
-- [ ] Create Workspace modal opens from sidebar "New Workspace" button
-- [ ] Modal fields: Name (text), Icon (emoji picker), Accent Color (8 preset swatches)
-- [ ] "Choose Project Folder" button triggers native OS folder picker via Tauri dialog
-- [ ] Selected folder path populates projectRoot in the new workspace
-- [ ] New workspace saved to config and immediately becomes active on confirm
-- [ ] Default layout applied to new workspace: Terminal | Webview | Claude
-- [ ] Workspace deletion removes from config, does not touch project files
-- [ ] If deleted workspace was active, first remaining workspace becomes active
-- [ ] App survives close and reopen with all workspaces and last active workspace intact
-- [ ] Panel type changes persist across app restarts
+- [x] AppConfig loads from disk on startup via Tauri Store Plugin
+- [x] If no config exists on first launch, a sensible default config is written to disk
+- [x] WorkspaceContext initializes from loaded AppConfig (not hardcoded data)
+- [x] Every WorkspaceContext mutation writes to disk immediately via useEffect
+- [x] Create Workspace modal opens from sidebar "New Workspace" button
+- [x] Modal fields: Name (text), Icon (emoji picker), Accent Color (8 preset swatches)
+- [x] "Choose Project Folder" button triggers native OS folder picker via Tauri dialog
+- [x] Selected folder path populates projectRoot in the new workspace
+- [x] New workspace saved to config and immediately becomes active on confirm
+- [x] Default layout applied to new workspace: Terminal | Webview | Claude
+- [x] Workspace deletion removes from config, does not touch project files
+- [x] If deleted workspace was active, first remaining workspace becomes active
+- [x] App survives close and reopen with all workspaces and last active workspace intact
+- [x] Panel type changes persist across app restarts
 
 ### Ordered Task List
 
@@ -455,7 +455,32 @@ gracefully — do not clear an already-set projectRoot on cancel.
 
 ### M3 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### Plan Entry: M3 Workspace Persistence — 2026-02-24
+**Status:** `[COMPLETED]`
+
+**Approach:**
+- Use `@tauri-apps/plugin-store` for JSON persistence (D006) and `@tauri-apps/plugin-dialog` for native folder picker
+- Both plugins have direct TypeScript APIs — no custom Rust commands needed for M3
+- `src/shell/workspace.ts` wraps plugin APIs, maintaining architecture boundary
+- WorkspaceContext transitions from hardcoded data to disk-loaded + auto-saved state
+- CreateWorkspaceModal provides full workspace creation flow with folder picker
+
+**Steps:**
+1. Install plugins: `pnpm add @tauri-apps/plugin-store @tauri-apps/plugin-dialog`, add Rust deps to Cargo.toml, register in lib.rs, add permissions to capabilities/default.json
+2. Write `src/shell/workspace.ts` — loadConfig, saveConfig, pickFolder, createDefaultConfig using plugin APIs
+3. Add CREATE_WORKSPACE and DELETE_WORKSPACE actions to WorkspaceContext reducer
+4. Update WorkspaceContext: remove hardcoded data, add loading state, load from disk on mount, save on every mutation via useEffect
+5. Write CreateWorkspaceModal — name input, emoji picker (12 presets), accent color picker (8 swatches), folder picker button
+6. Wire "+" button into Sidebar for workspace creation
+7. Add right-click deletion on WorkspaceCard with confirmation
+8. Verify: `pnpm tsc --noEmit` zero errors, persistence loop works (create→close→reopen→intact), commit
+
+**Completion Notes (2026-02-24):**
+- Used `@tauri-apps/plugin-store@2.4.2` and `@tauri-apps/plugin-dialog@2.6.0` — both have direct TS APIs, no custom Rust commands needed
+- Store file: `config.json` with single `config` key containing full AppConfig
+- No hardcoded workspaces remain — first launch creates a default "My Workspace"
+- Persistence verified: create, delete, switch, panel swap all survive app restart
+- Dev mode taskbar reopen crashes (expected — binary tied to Vite dev server, not a bug)
 
 ---
 

@@ -1,11 +1,13 @@
-import { createContext, useContext, useReducer, type ReactNode } from 'react';
+import { createContext, useContext, useReducer, useEffect, useRef, type ReactNode } from 'react';
 import { PanelType } from '../types/panels';
 import type { PanelSettings } from '../types/panels';
-import type { Workspace } from '../types/workspace';
+import type { Workspace, AppConfig } from '../types/workspace';
+import { loadConfig, saveConfig } from '../shell/workspace';
 
 // --- State Shape ---
 
 interface WorkspaceState {
+  loading: boolean;
   workspaces: Workspace[];
   activeWorkspaceId: string;
 }
@@ -16,63 +18,26 @@ type WorkspaceAction =
   | { type: 'SWITCH_WORKSPACE'; workspaceId: string }
   | { type: 'UPDATE_PANEL_TYPE'; slotIndex: number; panelType: PanelType }
   | { type: 'UPDATE_PANEL_SETTINGS'; slotIndex: number; settings: PanelSettings }
-  | { type: 'SET_WORKSPACES'; workspaces: Workspace[] };
-
-// --- Hardcoded Workspaces (M2 only — persistence in M3) ---
-
-const now = new Date().toISOString();
-
-const HARDCODED_WORKSPACES: Workspace[] = [
-  {
-    id: 'ws-ratatoskr',
-    name: 'Ratatoskr',
-    icon: '\u26A1',
-    accentColor: '#00ff88',
-    projectRoot: 'C:/users/patri/Ratatoskr',
-    layout: {
-      panels: [
-        { id: 'slot-0', type: PanelType.Terminal, settings: { shell: 'powershell.exe', cwd: 'C:/users/patri/Ratatoskr', startupCommands: ['cd C:/users/patri/Ratatoskr'] } },
-        { id: 'slot-1', type: PanelType.Webview, settings: { url: 'http://localhost:8080', label: 'localhost:8080' } },
-        { id: 'slot-2', type: PanelType.Claude, settings: { mode: 'desktop', desktopPort: 5173, webviewUrl: 'https://claude.ai' } },
-      ],
-    },
-    widgets: [],
-    onActivate: {
-      terminalStartupCommands: ['cd C:/users/patri/Ratatoskr'],
-      environmentVariables: {},
-      claudeDesktopProjectPath: 'C:/users/patri/Ratatoskr',
-    },
-    createdAt: now,
-    updatedAt: now,
-  },
-  {
-    id: 'ws-elementals',
-    name: 'Elementals',
-    icon: '\uD83C\uDF0A',
-    accentColor: '#60a5fa',
-    projectRoot: 'C:/users/patri/Elementals',
-    layout: {
-      panels: [
-        { id: 'slot-0', type: PanelType.Terminal, settings: { shell: 'powershell.exe', cwd: 'C:/users/patri/Elementals', startupCommands: ['cd C:/users/patri/Elementals'] } },
-        { id: 'slot-1', type: PanelType.Webview, settings: { url: 'http://localhost:3000', label: 'localhost:3000' } },
-        { id: 'slot-2', type: PanelType.Claude, settings: { mode: 'desktop', desktopPort: 5173, webviewUrl: 'https://claude.ai' } },
-      ],
-    },
-    widgets: [],
-    onActivate: {
-      terminalStartupCommands: ['cd C:/users/patri/Elementals'],
-      environmentVariables: {},
-      claudeDesktopProjectPath: 'C:/users/patri/Elementals',
-    },
-    createdAt: now,
-    updatedAt: now,
-  },
-];
+  | { type: 'SET_WORKSPACES'; workspaces: Workspace[]; activeWorkspaceId: string }
+  | { type: 'CREATE_WORKSPACE'; workspace: Workspace }
+  | { type: 'DELETE_WORKSPACE'; workspaceId: string }
+  | { type: 'LOADED'; config: AppConfig };
 
 // --- Reducer ---
 
 function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): WorkspaceState {
   switch (action.type) {
+    case 'LOADED': {
+      const ws = action.config.workspaces.find(w => w.id === action.config.activeWorkspaceId);
+      if (ws) {
+        document.documentElement.style.setProperty('--accent', ws.accentColor);
+      }
+      return {
+        loading: false,
+        workspaces: action.config.workspaces,
+        activeWorkspaceId: action.config.activeWorkspaceId,
+      };
+    }
     case 'SWITCH_WORKSPACE': {
       const workspace = state.workspaces.find(w => w.id === action.workspaceId);
       if (!workspace) return state;
@@ -109,7 +74,31 @@ function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): Works
       };
     }
     case 'SET_WORKSPACES':
-      return { ...state, workspaces: action.workspaces };
+      return { ...state, workspaces: action.workspaces, activeWorkspaceId: action.activeWorkspaceId };
+    case 'CREATE_WORKSPACE': {
+      document.documentElement.style.setProperty('--accent', action.workspace.accentColor);
+      return {
+        ...state,
+        workspaces: [...state.workspaces, action.workspace],
+        activeWorkspaceId: action.workspace.id,
+      };
+    }
+    case 'DELETE_WORKSPACE': {
+      const remaining = state.workspaces.filter(w => w.id !== action.workspaceId);
+      const wasActive = state.activeWorkspaceId === action.workspaceId;
+      let nextActiveId = state.activeWorkspaceId;
+      if (wasActive && remaining.length > 0) {
+        nextActiveId = remaining[0].id;
+        document.documentElement.style.setProperty('--accent', remaining[0].accentColor);
+      } else if (remaining.length === 0) {
+        nextActiveId = '';
+      }
+      return {
+        ...state,
+        workspaces: remaining,
+        activeWorkspaceId: nextActiveId,
+      };
+    }
     default:
       return state;
   }
@@ -127,16 +116,33 @@ const WorkspaceContext = createContext<WorkspaceContextValue | null>(null);
 
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(workspaceReducer, {
-    workspaces: HARDCODED_WORKSPACES,
-    activeWorkspaceId: HARDCODED_WORKSPACES[0].id,
+    loading: true,
+    workspaces: [],
+    activeWorkspaceId: '',
   });
 
-  const activeWorkspace = state.workspaces.find(w => w.id === state.activeWorkspaceId);
+  const initialLoadDone = useRef(false);
 
-  // Set initial accent color
-  if (activeWorkspace) {
-    document.documentElement.style.setProperty('--accent', activeWorkspace.accentColor);
-  }
+  // Load config from disk on mount
+  useEffect(() => {
+    loadConfig().then((config) => {
+      dispatch({ type: 'LOADED', config });
+      initialLoadDone.current = true;
+    });
+  }, []);
+
+  // Save to disk on every state change (skip during initial load)
+  useEffect(() => {
+    if (!initialLoadDone.current || state.loading) return;
+    const config: AppConfig = {
+      version: '1.0.0',
+      activeWorkspaceId: state.activeWorkspaceId,
+      workspaces: state.workspaces,
+    };
+    saveConfig(config);
+  }, [state.workspaces, state.activeWorkspaceId, state.loading]);
+
+  const activeWorkspace = state.workspaces.find(w => w.id === state.activeWorkspaceId);
 
   return (
     <WorkspaceContext.Provider value={{ state, dispatch, activeWorkspace }}>

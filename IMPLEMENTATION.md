@@ -45,7 +45,7 @@ Every plan journal entry uses one of these status tags:
 | Milestone | Status | Started | Completed |
 |---|---|---|---|
 | M0 — Scaffold | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
-| M1 — Terminal Panel | `[IN PROGRESS]` | 2026-02-24 | — |
+| M1 — Terminal Panel | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
 | M2 — Shell & Layout | `[PLANNED]` | — | — |
 | M3 — Workspace Persistence | `[PLANNED]` | — | — |
 | M4 — Remaining Panels | `[PLANNED]` | — | — |
@@ -150,12 +150,12 @@ Do not proceed to M1 until `pnpm tsc --noEmit` returns zero errors.
 
 - [x] TerminalPanel component renders inside a PanelContainer
 - [x] Real PowerShell process spawned via Tauri shell command on panel mount
-- [ ] xterm.js renders the shell output correctly (needs interactive verification)
-- [ ] User can type commands and receive responses (needs interactive verification)
+- [x] xterm.js renders the shell output correctly
+- [x] User can type commands and receive responses (full PTY interaction)
 - [x] Shell process is killed cleanly on panel unmount (no orphaned processes)
 - [x] Terminal uses projectRoot as working directory from PanelProps
 - [x] Terminal renders with correct theme colors from CSS variables
-- [x] PTY is viable on Windows — portable-pty (ConPTY) compiles and app launches
+- [x] PTY is viable on Windows — portable-pty (ConPTY) compiles and works
 
 ### Why This Milestone Is First
 
@@ -211,7 +211,7 @@ in DECISIONS.md with full rationale before implementing the fallback.
 ### M1 — Plan Journal
 
 #### Plan Entry: M1 Terminal Panel — 2026-02-24
-**Status:** `[PARTIAL]`
+**Status:** `[COMPLETED]`
 
 **Technical Approach:**
 - Use `portable-pty` Rust crate (from wezterm project) for Windows ConPTY support
@@ -245,10 +245,8 @@ in DECISIONS.md with full rationale before implementing the fallback.
 - xterm.js CSS also code-split into separate chunk
 - `pnpm tauri build` produces MSI + NSIS installers successfully
 - `pnpm tauri dev` launches app window without crashes
-- **Remaining:** Interactive verification needed — user must confirm:
-  - xterm.js renders PowerShell output with colors
-  - Keyboard input flows through to shell (typing commands works)
-  - If either fails, ERRORS.md and DECISIONS.md need fallback documentation
+- **Verified (2026-02-24):** User confirmed terminal renders and commands work end to end
+- PTY fallback not needed — ConPTY works on Windows 11
 
 ---
 

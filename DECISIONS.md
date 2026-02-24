@@ -443,6 +443,43 @@ Claude Desktop context shifting is best-effort pending M4 API investigation.
 
 ---
 
+## D014 — Terminal PTY: portable-pty over tauri-plugin-shell
+**Date:** 2026-02-24
+**Status:** [ACTIVE]
+**Made By:** Claude Code
+
+**Decision:**
+Use the `portable-pty` Rust crate (from wezterm project) for terminal PTY management
+instead of `tauri-plugin-shell`.
+
+**Alternatives Considered:**
+- tauri-plugin-shell — Tauri's official shell plugin. Provides pipe-based process
+  spawning with stdin/stdout/stderr streams. Rejected because it does not provide
+  PTY emulation — output lacks ANSI escape sequences, colors, cursor movement,
+  and interactive program support that xterm.js requires.
+- conpty crate — Lower-level Windows ConPTY wrapper. Rejected in favor of
+  portable-pty which provides a cross-platform abstraction over ConPTY.
+- std::process::Command — Simple process spawning. Same pipe-based limitations
+  as tauri-plugin-shell.
+
+**Rationale:**
+xterm.js is a terminal emulator that expects PTY output (ANSI escape sequences,
+VT100 control codes, colors, cursor positioning). Without a real PTY, PowerShell
+runs in pipe mode and strips all interactive features — no colors, no tab
+completion rendering, no cursor movement. portable-pty wraps Windows ConPTY
+(available on Windows 10 1809+) and provides the exact PTY behavior xterm.js needs.
+It is the same library used by wezterm, a production terminal emulator.
+
+**Implications:**
+- tauri-plugin-shell is not added to Cargo.toml or tauri.conf.json for M1
+- PTY management is handled by custom Tauri commands in src-tauri/src/commands/shell.rs
+- PTY instances are stored in Tauri managed state (PtyStore)
+- Output streaming uses Tauri events rather than the shell plugin's event system
+- For future simple command execution (git status, etc.), std::process::Command
+  or tauri-plugin-shell can be added separately
+
+---
+
 *End of DECISIONS.md*
 *Version 1.0 — Created 2026-02-24*
 *Entries are never deleted. Superseded entries are marked [SUPERSEDED].*

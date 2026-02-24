@@ -45,7 +45,7 @@ Every plan journal entry uses one of these status tags:
 | Milestone | Status | Started | Completed |
 |---|---|---|---|
 | M0 — Scaffold | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
-| M1 — Terminal Panel | `[PLANNED]` | — | — |
+| M1 — Terminal Panel | `[IN PROGRESS]` | 2026-02-24 | — |
 | M2 — Shell & Layout | `[PLANNED]` | — | — |
 | M3 — Workspace Persistence | `[PLANNED]` | — | — |
 | M4 — Remaining Panels | `[PLANNED]` | — | — |
@@ -148,15 +148,14 @@ Do not proceed to M1 until `pnpm tsc --noEmit` returns zero errors.
 
 ### Definition of Done
 
-- [ ] TerminalPanel component renders inside a PanelContainer
-- [ ] Real PowerShell process spawned via Tauri shell command on panel mount
-- [ ] xterm.js renders the shell output correctly
-- [ ] User can type commands and receive responses (full PTY interaction)
-- [ ] Shell process is killed cleanly on panel unmount (no orphaned processes)
-- [ ] Terminal uses projectRoot as working directory from PanelProps
-- [ ] Terminal renders with correct theme colors from CSS variables
-- [ ] If PTY is not viable on Windows, fallback command-execution mode is documented
-    in ERRORS.md and DECISIONS.md before proceeding
+- [x] TerminalPanel component renders inside a PanelContainer
+- [x] Real PowerShell process spawned via Tauri shell command on panel mount
+- [ ] xterm.js renders the shell output correctly (needs interactive verification)
+- [ ] User can type commands and receive responses (needs interactive verification)
+- [x] Shell process is killed cleanly on panel unmount (no orphaned processes)
+- [x] Terminal uses projectRoot as working directory from PanelProps
+- [x] Terminal renders with correct theme colors from CSS variables
+- [x] PTY is viable on Windows — portable-pty (ConPTY) compiles and app launches
 
 ### Why This Milestone Is First
 
@@ -211,7 +210,45 @@ in DECISIONS.md with full rationale before implementing the fallback.
 
 ### M1 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### Plan Entry: M1 Terminal Panel — 2026-02-24
+**Status:** `[PARTIAL]`
+
+**Technical Approach:**
+- Use `portable-pty` Rust crate (from wezterm project) for Windows ConPTY support
+  - Provides real pseudo-terminal with ANSI escape sequences, colors, interactive programs
+  - tauri-plugin-shell is pipe-based only — insufficient for xterm.js PTY requirements
+  - Decision logged in DECISIONS.md D014
+- PTY instances stored in Tauri managed state (`PtyStore` behind Mutex)
+- PTY output streamed via Tauri events (`shell-output-{ptyId}`)
+- PTY input sent via Tauri invoke commands
+- Added `resize_shell` command for xterm.js FitAddon compatibility
+
+**Steps:**
+1. Install xterm.js: `pnpm add @xterm/xterm @xterm/addon-fit @xterm/addon-web-links`
+2. Add `portable-pty` + `uuid` to Cargo.toml
+3. Write `src-tauri/src/commands/shell.rs` — spawn_shell, write_to_shell, resize_shell, kill_shell
+4. Write `src-tauri/src/commands/mod.rs` — export shell module
+5. Register commands + PtyStore state in `src-tauri/src/lib.rs`
+6. Write TypeScript wrappers in `src/shell/terminal.ts`
+7. Write TerminalPanel component with xterm.js integration
+8. Write PanelSkeleton loading component
+9. Write minimal PanelContainer with Suspense
+10. Write temporary test layout in App.tsx
+11. Build and test end to end
+12. Document findings in ERRORS.md
+13. Commit: "M1 — terminal panel end to end"
+
+**Completion Notes (2026-02-24):**
+- All code written and compiling (zero TS errors, zero Rust warnings)
+- portable-pty 0.8.1 provides ConPTY on Windows — compiles and app launches without crash
+- xterm.js 6.0.0 code-split correctly: TerminalPanel chunk is 336KB (separate from main 195KB)
+- xterm.js CSS also code-split into separate chunk
+- `pnpm tauri build` produces MSI + NSIS installers successfully
+- `pnpm tauri dev` launches app window without crashes
+- **Remaining:** Interactive verification needed — user must confirm:
+  - xterm.js renders PowerShell output with colors
+  - Keyboard input flows through to shell (typing commands works)
+  - If either fails, ERRORS.md and DECISIONS.md need fallback documentation
 
 ---
 

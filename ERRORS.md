@@ -333,6 +333,35 @@ dispatching `picker-close` while the picker is open (React state batching second
 
 ---
 
+## [typescript][build] `tsc --noEmit` passes but `tsc -b` fails on null vs undefined
+
+**Date:** 2026-02-25
+**Milestone:** M6
+**Tags:** typescript, build, claude-panel
+
+**Problem:**
+`pnpm tsc --noEmit` (used for dev checks) passed with zero errors, but `pnpm build`
+(which runs `tsc -b`) caught a type error in ClaudePanel.tsx line 62: `Type 'string | null'
+is not assignable to type 'string | undefined'`. The `webviewTarget` state was typed as
+`string | null` but the Tauri `Webview` constructor expects `string | undefined` for the
+`url` option.
+
+**Failed Approaches:**
+None — caught during production build verification in M6.
+
+**Solution:**
+Changed `url: webviewTarget` to `url: webviewTarget ?? undefined`. The null case is
+already guarded by an early return (`if (!webviewTarget) return`), but TypeScript's
+type narrowing doesn't carry across the async function boundary.
+
+**Implications:**
+- Always run `tsc -b` (or the full `pnpm build` pipeline) as the definitive type check,
+  not just `tsc --noEmit` — they use different tsconfig resolution
+- When passing state values to third-party APIs, prefer `?? undefined` over `!` assertions
+  for null-to-undefined conversions
+
+---
+
 *End of ERRORS.md*
 *Version 1.0 — Created 2026-02-24*
 *This file only grows. Entries are never deleted.*

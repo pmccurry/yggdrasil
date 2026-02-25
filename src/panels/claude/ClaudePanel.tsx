@@ -59,7 +59,7 @@ function ClaudePanel({ panelId, settings }: PanelProps) {
         const rect = el.getBoundingClientRect();
 
         const wv = new Webview(hostWindow, label, {
-          url: webviewTarget,
+          url: webviewTarget ?? undefined,
           x: rect.left,
           y: rect.top,
           width: Math.max(rect.width, 1),

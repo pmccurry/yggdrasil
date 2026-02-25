@@ -87,23 +87,26 @@ function EditorPanel({ settings, onSettingsChange }: PanelProps) {
   function handleEditorMount(monaco: Monaco) {
     monacoRef.current = monaco;
 
+    const rootStyles = getComputedStyle(document.documentElement);
+    const css = (v: string) => rootStyles.getPropertyValue(v).trim();
+
     monaco.editor.defineTheme('yggdrasil', {
       base: 'vs-dark',
       inherit: true,
       rules: [],
       colors: {
-        'editor.background': '#0d0d14',
-        'editor.foreground': '#e5e7eb',
-        'editorCursor.foreground': '#00ff88',
-        'editor.selectionBackground': '#1a1a2e',
-        'editor.lineHighlightBackground': '#13131f',
-        'editorLineNumber.foreground': '#374151',
-        'editorLineNumber.activeForeground': '#6b7280',
-        'editorWidget.background': '#13131f',
-        'editorWidget.border': '#1a1a2e',
-        'input.background': '#0a0a0f',
-        'input.border': '#1e1e30',
-        'focusBorder': '#00ff88',
+        'editor.background': css('--bg-surface'),
+        'editor.foreground': css('--text-primary'),
+        'editorCursor.foreground': css('--accent'),
+        'editor.selectionBackground': css('--bg-overlay'),
+        'editor.lineHighlightBackground': css('--bg-elevated'),
+        'editorLineNumber.foreground': css('--text-faint'),
+        'editorLineNumber.activeForeground': css('--text-muted'),
+        'editorWidget.background': css('--bg-elevated'),
+        'editorWidget.border': css('--border-subtle'),
+        'input.background': css('--bg-base'),
+        'input.border': css('--border-default'),
+        'focusBorder': css('--accent'),
       },
     });
     monaco.editor.setTheme('yggdrasil');
@@ -155,7 +158,7 @@ function EditorPanel({ settings, onSettingsChange }: PanelProps) {
             readOnly: true,
             minimap: { enabled: false },
             scrollBeyondLastLine: false,
-            fontFamily: "'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace",
+            fontFamily: getComputedStyle(document.documentElement).getPropertyValue('--font-mono').trim(),
             fontSize: 12,
             lineNumbers: 'on',
             renderLineHighlight: 'line',

@@ -49,8 +49,8 @@ Every plan journal entry uses one of these status tags:
 | M2 — Shell & Layout | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
 | M3 — Workspace Persistence | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
 | M4 — Remaining Panels | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
-| M5 — Status Widgets | `[IN PROGRESS]` | 2026-02-24 | — |
-| M6 — Polish & V1 Close | `[PLANNED]` | — | — |
+| M5 — Status Widgets | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
+| M6 — Polish & V1 Close | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
 
 ---
 
@@ -798,7 +798,34 @@ real-world issues. A passing dev build that fails on install is not done.
 
 ### M6 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### Plan Entry: M6 Polish & V1 Close — 2026-02-25
+**Status:** `[COMPLETED]`
+
+**Scope:**
+Codebase audit found three issues requiring code changes. Everything else
+(error states, cleanup, sidebar, skeleton loaders, PanelPicker, PlanningDrawer,
+typography, console cleanliness) already passed.
+
+**Steps:**
+1. Fix EditorPanel hardcoded colors — replaced 12 hardcoded hex values in Monaco
+   `defineTheme` with `getComputedStyle()` CSS variable reads (same pattern as TerminalPanel)
+2. Fix EditorPanel fontFamily — replaced hardcoded font stack string with
+   `getComputedStyle().getPropertyValue('--font-mono')` read
+3. Fix window config — added `minWidth: 900, minHeight: 600` to tauri.conf.json,
+   increased default size to `1200x800` for 3-panel layout
+4. Fix ClaudePanel build error — `webviewTarget` typed as `string | null` but
+   Webview constructor expects `string | undefined`; fixed with `?? undefined`
+5. Build verification — `pnpm tsc --noEmit` zero errors, `cargo check` zero errors,
+   `pnpm tauri build` produces MSI + NSIS installers
+6. Documentation closeout — all milestone status tags finalized
+
+**Completion Notes (2026-02-25):**
+- Zero hardcoded hex colors remain in any component file
+- All CSS variable references verified against `src/theme/variables.css`
+- Production build: MSI at `src-tauri/target/release/bundle/msi/yggdrasil_0.1.0_x64_en-US.msi`
+- Production build: NSIS at `src-tauri/target/release/bundle/nsis/yggdrasil_0.1.0_x64-setup.exe`
+- ClaudePanel `tsc -b` error was pre-existing (not caught by `tsc --noEmit`) — fixed as part of M6
+- All 6 milestones (M0–M6) completed — V1 is done
 
 ---
 

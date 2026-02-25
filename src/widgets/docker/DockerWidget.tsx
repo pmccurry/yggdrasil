@@ -1,16 +1,25 @@
-import { dockerInspect } from '../../shell/docker';
-import type { WidgetConfig, WidgetState, DockerWidgetSettings } from '../../types/widgets';
+import { dockerPs } from '../../shell/docker';
+import type { WidgetConfig, WidgetState } from '../../types/widgets';
 
-export async function pollDocker(config: WidgetConfig): Promise<WidgetState> {
-  const settings = config.settings as DockerWidgetSettings;
+export async function pollDocker(_config: WidgetConfig): Promise<WidgetState> {
   try {
-    const status = await dockerInspect(settings.containerName);
-    if (status === 'running') {
-      return { status: 'ok', value: 'Running' };
+    const containers = await dockerPs();
+    if (containers.length === 0) {
+      return { status: 'idle', value: 'No containers' };
     }
-    // exited, paused, restarting, etc.
-    const capitalized = status.charAt(0).toUpperCase() + status.slice(1);
-    return { status: 'warn', value: capitalized };
+    const running = containers.filter(c => c.state === 'running');
+    const stopped = containers.filter(c => c.state !== 'running');
+    const tooltip = containers
+      .map(c => `${c.name}: ${c.state}`)
+      .join('\n');
+
+    if (stopped.length === 0) {
+      return { status: 'ok', value: `${running.length} running`, tooltip };
+    }
+    if (running.length === 0) {
+      return { status: 'warn', value: `${stopped.length} stopped`, tooltip };
+    }
+    return { status: 'ok', value: `${running.length}/${containers.length} up`, tooltip };
   } catch (err: unknown) {
     const msg = String(err);
     if (msg.startsWith('docker_not_installed:')) {

@@ -15,6 +15,7 @@ pub fn run() {
             commands::filesystem::read_file,
             commands::git::get_git_status,
             commands::docker::docker_inspect,
+            commands::docker::docker_ps,
             commands::claude::detect_claude_desktop,
             commands::claude::launch_claude_desktop,
         ])

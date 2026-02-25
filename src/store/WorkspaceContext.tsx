@@ -1,8 +1,10 @@
 import { createContext, useContext, useReducer, useEffect, useRef, type ReactNode } from 'react';
 import { PanelType } from '../types/panels';
 import type { PanelSettings } from '../types/panels';
-import type { Workspace, AppConfig } from '../types/workspace';
+import type { Workspace, AppConfig, LayoutPreset } from '../types/workspace';
 import type { KeyboardShortcut } from '../types/shortcuts';
+import { PANEL_REGISTRY } from '../panels/registry';
+import { PRESET_CONFIGS } from '../workspace/presets';
 import { loadConfig, saveConfig } from '../shell/workspace';
 
 // --- State Shape ---
@@ -23,7 +25,12 @@ type WorkspaceAction =
   | { type: 'SET_WORKSPACES'; workspaces: Workspace[]; activeWorkspaceId: string }
   | { type: 'CREATE_WORKSPACE'; workspace: Workspace }
   | { type: 'DELETE_WORKSPACE'; workspaceId: string }
-  | { type: 'LOADED'; config: AppConfig };
+  | { type: 'LOADED'; config: AppConfig }
+  | { type: 'SET_LAYOUT_PRESET'; preset: LayoutPreset }
+  | { type: 'ADD_PANEL'; panelType: PanelType }
+  | { type: 'REMOVE_PANEL'; slotIndex: number }
+  | { type: 'UPDATE_PANEL_SIZE_WEIGHT'; slotIndex: number; sizeWeight: number }
+  | { type: 'UPDATE_ROW_WEIGHT'; rowWeight: number };
 
 // --- Reducer ---
 
@@ -52,13 +59,10 @@ function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): Works
         ...state,
         workspaces: state.workspaces.map(ws => {
           if (ws.id !== state.activeWorkspaceId) return ws;
-          const panels = [...ws.layout.panels] as [typeof ws.layout.panels[0], typeof ws.layout.panels[1], typeof ws.layout.panels[2]];
-          panels[action.slotIndex] = {
-            ...panels[action.slotIndex],
-            type: action.panelType,
-            settings: {},
-          };
-          return { ...ws, layout: { panels }, updatedAt: new Date().toISOString() };
+          const panels = ws.layout.panels.map((p, i) =>
+            i === action.slotIndex ? { ...p, type: action.panelType, settings: {} } : p,
+          );
+          return { ...ws, layout: { ...ws.layout, panels }, updatedAt: new Date().toISOString() };
         }),
       };
     }
@@ -67,12 +71,86 @@ function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): Works
         ...state,
         workspaces: state.workspaces.map(ws => {
           if (ws.id !== state.activeWorkspaceId) return ws;
-          const panels = [...ws.layout.panels] as [typeof ws.layout.panels[0], typeof ws.layout.panels[1], typeof ws.layout.panels[2]];
-          panels[action.slotIndex] = {
-            ...panels[action.slotIndex],
-            settings: action.settings,
+          const panels = ws.layout.panels.map((p, i) =>
+            i === action.slotIndex ? { ...p, settings: action.settings } : p,
+          );
+          return { ...ws, layout: { ...ws.layout, panels }, updatedAt: new Date().toISOString() };
+        }),
+      };
+    }
+    case 'SET_LAYOUT_PRESET': {
+      return {
+        ...state,
+        workspaces: state.workspaces.map(ws => {
+          if (ws.id !== state.activeWorkspaceId) return ws;
+          const presetDef = PRESET_CONFIGS[action.preset];
+          const panels = presetDef.defaultSlots.map((slot, i) => {
+            const existing = ws.layout.panels[i];
+            return {
+              id: `slot-${i}`,
+              type: existing?.type ?? PanelType.Terminal,
+              settings: existing?.settings ?? { ...PANEL_REGISTRY[PanelType.Terminal].defaults },
+              sizeWeight: slot.sizeWeight,
+              row: slot.row,
+            };
+          });
+          return {
+            ...ws,
+            layout: { preset: action.preset, rowWeight: 1, panels },
+            updatedAt: new Date().toISOString(),
           };
-          return { ...ws, layout: { panels }, updatedAt: new Date().toISOString() };
+        }),
+      };
+    }
+    case 'ADD_PANEL': {
+      return {
+        ...state,
+        workspaces: state.workspaces.map(ws => {
+          if (ws.id !== state.activeWorkspaceId) return ws;
+          if (ws.layout.panels.length >= 4) return ws;
+          const newPanel = {
+            id: `slot-${ws.layout.panels.length}`,
+            type: action.panelType,
+            settings: { ...PANEL_REGISTRY[action.panelType].defaults },
+            sizeWeight: 1,
+            row: 0 as const,
+          };
+          const panels = [...ws.layout.panels, newPanel];
+          return { ...ws, layout: { ...ws.layout, panels }, updatedAt: new Date().toISOString() };
+        }),
+      };
+    }
+    case 'REMOVE_PANEL': {
+      return {
+        ...state,
+        workspaces: state.workspaces.map(ws => {
+          if (ws.id !== state.activeWorkspaceId) return ws;
+          if (ws.layout.panels.length <= 1) return ws;
+          const panels = ws.layout.panels
+            .filter((_, i) => i !== action.slotIndex)
+            .map((p, i) => ({ ...p, id: `slot-${i}` }));
+          return { ...ws, layout: { ...ws.layout, panels }, updatedAt: new Date().toISOString() };
+        }),
+      };
+    }
+    case 'UPDATE_PANEL_SIZE_WEIGHT': {
+      return {
+        ...state,
+        workspaces: state.workspaces.map(ws => {
+          if (ws.id !== state.activeWorkspaceId) return ws;
+          const panels = ws.layout.panels.map((p, i) =>
+            i === action.slotIndex ? { ...p, sizeWeight: action.sizeWeight } : p,
+          );
+          return { ...ws, layout: { ...ws.layout, panels }, updatedAt: new Date().toISOString() };
+        }),
+      };
+    }
+    case 'UPDATE_ROW_WEIGHT': {
+      return {
+        ...state,
+        workspaces: state.workspaces.map(ws => {
+          if (ws.id !== state.activeWorkspaceId) return ws;
+          return { ...ws, layout: { ...ws.layout, rowWeight: action.rowWeight }, updatedAt: new Date().toISOString() };
         }),
       };
     }

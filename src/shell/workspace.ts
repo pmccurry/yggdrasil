@@ -3,7 +3,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { PanelType } from '../types/panels';
 import { WidgetType } from '../types/widgets';
 import type { WidgetConfig } from '../types/widgets';
-import type { AppConfig, Workspace, WorkspaceActivationHook, PlanningDrawerContent } from '../types/workspace';
+import type { AppConfig, Workspace, WorkspaceActivationHook, PlanningDrawerContent, PanelSlot } from '../types/workspace';
 import { DEFAULT_SHORTCUTS } from '../types/shortcuts';
 
 const STORE_FILE = 'config.json';
@@ -62,10 +62,12 @@ export function createDefaultConfig(): AppConfig {
     accentColor: '#00ff88',
     projectRoot: '',
     layout: {
+      preset: 'large-medium',
+      rowWeight: 1,
       panels: [
-        { id: 'slot-0', type: PanelType.Terminal, settings: { shell: 'powershell.exe', cwd: '', startupCommands: [] } },
-        { id: 'slot-1', type: PanelType.Webview, settings: { url: '', label: 'Webview' } },
-        { id: 'slot-2', type: PanelType.Claude, settings: { mode: 'desktop', desktopPort: 5173, webviewUrl: 'https://claude.ai' } },
+        { id: 'slot-0', type: PanelType.Terminal, settings: { shell: 'powershell.exe', cwd: '', startupCommands: [] }, sizeWeight: 2, row: 0 },
+        { id: 'slot-1', type: PanelType.Webview, settings: { url: '', label: 'Webview' }, sizeWeight: 1, row: 0 },
+        { id: 'slot-2', type: PanelType.Claude, settings: { mode: 'desktop', desktopPort: 5173, webviewUrl: 'https://claude.ai' }, sizeWeight: 1, row: 0 },
       ],
     },
     widgets: defaultWidgets(''),
@@ -97,10 +99,12 @@ export function createNewWorkspace(
     accentColor,
     projectRoot,
     layout: {
+      preset: 'large-medium',
+      rowWeight: 1,
       panels: [
-        { id: 'slot-0', type: PanelType.Terminal, settings: { shell: 'powershell.exe', cwd: projectRoot, startupCommands: projectRoot ? [`cd ${projectRoot}`] : [] } },
-        { id: 'slot-1', type: PanelType.Webview, settings: { url: '', label: 'Webview' } },
-        { id: 'slot-2', type: PanelType.Claude, settings: { mode: 'desktop', desktopPort: 5173, webviewUrl: 'https://claude.ai' } },
+        { id: 'slot-0', type: PanelType.Terminal, settings: { shell: 'powershell.exe', cwd: projectRoot, startupCommands: projectRoot ? [`cd ${projectRoot}`] : [] }, sizeWeight: 2, row: 0 },
+        { id: 'slot-1', type: PanelType.Webview, settings: { url: '', label: 'Webview' }, sizeWeight: 1, row: 0 },
+        { id: 'slot-2', type: PanelType.Claude, settings: { mode: 'desktop', desktopPort: 5173, webviewUrl: 'https://claude.ai' }, sizeWeight: 1, row: 0 },
       ],
     },
     widgets: defaultWidgets(projectRoot),
@@ -153,6 +157,24 @@ export async function loadConfig(): Promise<AppConfig> {
       if (!ws.planning) {
         ws.planning = defaultPlanning();
         migrated = true;
+      }
+
+      // Migrate V1→V2: add sizeWeight/row to panel slots, preset/rowWeight to layout
+      if (!ws.layout.preset) {
+        (ws.layout as { preset: string }).preset = 'large-medium';
+        (ws.layout as { rowWeight: number }).rowWeight = 1;
+        migrated = true;
+      }
+      for (const panel of ws.layout.panels) {
+        const p = panel as PanelSlot;
+        if (p.sizeWeight === undefined) {
+          p.sizeWeight = 1;
+          migrated = true;
+        }
+        if (p.row === undefined) {
+          p.row = 0;
+          migrated = true;
+        }
       }
     }
     if (migrated) {

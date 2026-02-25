@@ -799,6 +799,82 @@ the VPS health check use case that was discussed alongside token usage.
 
 ---
 
+## D025 — Layout engine: CSS Grid for all layout presets
+**Date:** 2026-02-25
+**Status:** [SUPERSEDED]
+**Made By:** Joint
+
+**Decision:**
+Use CSS Grid for the LayoutGrid component across all four layout presets.
+
+**Superseded by:** D025b — CSS Grid forces shared column tracks across both rows,
+preventing independent per-row column sizing. See D025b.
+
+---
+
+## D025b — Layout engine: nested flex containers with per-row independence
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint (user correction)
+
+**Decision:**
+Use nested flex containers for the LayoutGrid component. Each row is its own
+`display: flex` container, so vertical drag handles between panels in one row
+do not affect column proportions in other rows.
+
+**Alternatives Considered:**
+- CSS Grid with shared columns (D025) — column tracks are shared between rows,
+  so dragging a vertical handle in the four-equal layout adjusts both the top
+  and bottom row proportions simultaneously. Users expect independent resizing
+  per row. Rejected for this fundamental limitation.
+- CSS Grid with subgrid — browser support is insufficient and the complexity
+  is not justified when nested flex solves the problem cleanly.
+
+**Rationale:**
+When a user is in a four-equal layout and removes one bottom panel, they expect to
+drag the remaining bottom panel to span the full width independently of the top row.
+Nested flex containers give each row its own column proportions. The `large-two-stacked`
+preset uses a horizontal flex (panel A + right column) where the right column is a
+vertical flex (B over C). This naturally supports independent sizing everywhere.
+
+**Implications:**
+- LayoutGrid has three rendering paths: SingleRow, TwoRow, SpanningLayout
+- Each PanelRow component owns its own container ref for drag calculations
+- Vertical drag handles are inline flex siblings, not grid overlays
+- `presets.ts` no longer exports grid placement helpers
+
+---
+
+## D026 — LayoutPresetPicker placement: StatusBar between workspace info and widgets
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+The LayoutPresetPicker (four small icon buttons for preset selection) is mounted in the
+StatusBar, positioned between the workspace name/path on the left and the widget chips
+on the right.
+
+**Alternatives Considered:**
+- Panel header area — would require picking one panel header to host the picker, which
+  is semantically wrong (presets affect all panels, not one).
+- Floating toolbar — adds a new UI element that needs its own positioning logic.
+  Unnecessary when the StatusBar already serves as the workspace-level control surface.
+- Context menu on right-click — hidden UI, not discoverable.
+
+**Rationale:**
+The StatusBar is the workspace-level control surface. Layout presets are a workspace-level
+concern (they affect the entire panel grid). Placing the preset picker in the StatusBar is
+semantically correct and visually non-intrusive. The four small icon buttons occupy minimal
+horizontal space.
+
+**Implications:**
+- StatusBar imports and renders LayoutPresetPicker
+- LayoutPresetPicker dispatches SET_LAYOUT_PRESET to WorkspaceContext
+- Active preset is highlighted with `var(--accent)`
+
+---
+
 *End of DECISIONS.md*
 *Version 1.0 — Created 2026-02-24*
 *Entries are never deleted. Superseded entries are marked [SUPERSEDED].*

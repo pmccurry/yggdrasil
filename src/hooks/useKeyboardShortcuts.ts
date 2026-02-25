@@ -1,11 +1,16 @@
 import { useEffect } from 'react';
 import type { KeyboardShortcut } from '../types/shortcuts';
-import type { Workspace } from '../types/workspace';
+import type { Workspace, LayoutPreset } from '../types/workspace';
+import { PRESET_ORDER } from '../workspace/presets';
 
 interface UseKeyboardShortcutsArgs {
   shortcuts: KeyboardShortcut[];
   workspaces: Workspace[];
-  workspaceDispatch: React.Dispatch<{ type: 'SWITCH_WORKSPACE'; workspaceId: string }>;
+  activeWorkspace?: Workspace;
+  workspaceDispatch: React.Dispatch<
+    | { type: 'SWITCH_WORKSPACE'; workspaceId: string }
+    | { type: 'SET_LAYOUT_PRESET'; preset: LayoutPreset }
+  >;
   appDispatch: React.Dispatch<
     | { type: 'TOGGLE_PLANNING_DRAWER' }
     | { type: 'SET_PANEL_FOCUS'; index: number | null }
@@ -35,6 +40,7 @@ function isInsideTerminalOrEditor(target: EventTarget | null): boolean {
 export function useKeyboardShortcuts({
   shortcuts,
   workspaces,
+  activeWorkspace,
   workspaceDispatch,
   appDispatch,
 }: UseKeyboardShortcutsArgs) {
@@ -75,10 +81,16 @@ export function useKeyboardShortcuts({
         return;
       }
 
-      // layout.preset.cycle — no-op in M7
+      // layout.preset.cycle
+      if (action === 'layout.preset.cycle' && activeWorkspace) {
+        const currentIndex = PRESET_ORDER.indexOf(activeWorkspace.layout.preset);
+        const nextIndex = (currentIndex + 1) % PRESET_ORDER.length;
+        workspaceDispatch({ type: 'SET_LAYOUT_PRESET', preset: PRESET_ORDER[nextIndex] });
+        return;
+      }
     }
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [shortcuts, workspaces, workspaceDispatch, appDispatch]);
+  }, [shortcuts, workspaces, activeWorkspace, workspaceDispatch, appDispatch]);
 }

@@ -32,6 +32,7 @@
   --topbar-height:         42px;
   --panel-header-height:   36px;
   --planning-drawer-width: 32px;
+  --drag-handle-size:      4px;
 }
 
 @keyframes widget-pulse {

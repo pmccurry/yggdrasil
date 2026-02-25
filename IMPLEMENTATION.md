@@ -53,7 +53,7 @@ Every plan journal entry uses one of these status tags:
 | M6 — Polish & V1 Close | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
 | **— V2 —** | | | |
 | M7 — Keyboard Shortcuts | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
-| M8 — Flexible Layout & Presets | `[PLANNED]` | — | — |
+| M8 — Flexible Layout & Presets | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
 | M9 — Planning Drawer Content | `[PLANNED]` | — | — |
 | M10 — HTTP Endpoint Widget | `[PLANNED]` | — | — |
 
@@ -991,7 +991,30 @@ awkward for this preset specifically — log the decision in DECISIONS.md.
 
 ### M8 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### M8 Plan Entry 1 — Flexible Layout & Presets Implementation `[COMPLETED]`
+**Date:** 2026-02-25
+**Status:** `[COMPLETED]`
+
+**Context:** M7 complete. M8 transforms V1 fixed three-column layout into flexible
+1–4 panel system with four layout presets, drag-to-resize handles, and add/remove
+panel controls.
+
+**Steps:**
+1. Update types — V2 PanelSlot (sizeWeight, row), LayoutPreset, WorkspaceLayout (preset, rowWeight, PanelSlot[])
+2. Config migration — backfill sizeWeight/row/preset/rowWeight for V1 configs
+3. WorkspaceContext — 5 new actions (SET_LAYOUT_PRESET, ADD_PANEL, REMOVE_PANEL, UPDATE_PANEL_SIZE_WEIGHT, UPDATE_ROW_WEIGHT)
+4. Preset configs — src/workspace/presets.ts with PRESET_CONFIGS and getGridPlacement
+5. LayoutGrid rewrite — CSS Grid, dynamic columns/rows, drag handles, add/remove
+6. DragHandle — vertical + horizontal, hover visibility, drag events
+7. useLayoutDrag — drag lifecycle management hook
+8. LayoutPresetPicker — four preset buttons in StatusBar
+9. PanelAddButton — + button with PanelPicker overlay
+10. PanelContainer — × remove button (hover-only)
+11. Webview drag signaling — drag-start/drag-end listeners
+12. CSS variable — --drag-handle-size: 4px
+13. Decisions D025 (CSS Grid) and D026 (preset picker in StatusBar) logged
+
+**Decisions:** D025 (CSS Grid for layouts), D026 (preset picker in StatusBar)
 
 ---
 

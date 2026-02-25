@@ -1,9 +1,11 @@
 import { useWorkspaceContext } from '../store/WorkspaceContext';
 import { useWidgets } from '../hooks/useWidgets';
 import WidgetChip from '../widgets/WidgetChip';
+import LayoutPresetPicker from './LayoutPresetPicker';
+import type { LayoutPreset } from '../types/workspace';
 
 function StatusBar() {
-  const { activeWorkspace } = useWorkspaceContext();
+  const { activeWorkspace, dispatch } = useWorkspaceContext();
   const widgetStates = useWidgets(activeWorkspace?.widgets ?? []);
 
   if (!activeWorkspace) return null;
@@ -46,6 +48,14 @@ function StatusBar() {
           {activeWorkspace.projectRoot}
         </span>
       </div>
+
+      {/* Center: layout preset picker */}
+      <LayoutPresetPicker
+        activePreset={activeWorkspace.layout.preset}
+        onSelectPreset={(preset: LayoutPreset) => {
+          dispatch({ type: 'SET_LAYOUT_PRESET', preset });
+        }}
+      />
 
       {/* Right: live widget chips */}
       <div style={{

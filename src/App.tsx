@@ -7,12 +7,13 @@ import LayoutGrid from './workspace/LayoutGrid';
 import PlanningDrawer from './workspace/PlanningDrawer';
 
 function AppShell() {
-  const { state: wsState, dispatch: wsDispatch } = useWorkspaceContext();
+  const { state: wsState, dispatch: wsDispatch, activeWorkspace } = useWorkspaceContext();
   const { dispatch: appDispatch } = useAppContext();
 
   useKeyboardShortcuts({
     shortcuts: wsState.shortcuts,
     workspaces: wsState.workspaces,
+    activeWorkspace,
     workspaceDispatch: wsDispatch,
     appDispatch,
   });

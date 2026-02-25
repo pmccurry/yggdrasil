@@ -9,12 +9,15 @@ interface PanelContainerProps {
   panelType: PanelType;
   panelProps: PanelProps;
   onSwapPanel: (newType: PanelType) => void;
+  onRemovePanel?: () => void;
+  canRemove?: boolean;
   isFocused?: boolean;
 }
 
-function PanelContainer({ panelType, panelProps, onSwapPanel, isFocused }: PanelContainerProps) {
+function PanelContainer({ panelType, panelProps, onSwapPanel, onRemovePanel, canRemove, isFocused }: PanelContainerProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [showFocus, setShowFocus] = useState(false);
+  const [headerHover, setHeaderHover] = useState(false);
   const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (isFocused) {
@@ -51,6 +54,8 @@ function PanelContainer({ panelType, panelProps, onSwapPanel, isFocused }: Panel
     }}>
       {/* Panel Header */}
       <div
+        onMouseEnter={() => setHeaderHover(true)}
+        onMouseLeave={() => setHeaderHover(false)}
         style={{
         height: 'var(--panel-header-height)',
         minHeight: 'var(--panel-header-height)',
@@ -75,31 +80,61 @@ function PanelContainer({ panelType, panelProps, onSwapPanel, isFocused }: Panel
           <span style={{ fontSize: 'var(--font-size-md)' }}>{entry.icon}</span>
           <span>{entry.label}</span>
         </div>
-        <button
-          onClick={openPicker}
-          title="Change panel type"
-          style={{
-            background: 'none',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: '3px',
-            color: 'var(--text-muted)',
-            cursor: 'pointer',
-            fontFamily: 'var(--font-mono)',
-            fontSize: 'var(--font-size-xs)',
-            padding: '2px 6px',
-            transition: 'color 0.15s, border-color 0.15s',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.color = 'var(--accent)';
-            e.currentTarget.style.borderColor = 'var(--accent-border)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.color = 'var(--text-muted)';
-            e.currentTarget.style.borderColor = 'var(--border-subtle)';
-          }}
-        >
-          swap
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <button
+            onClick={openPicker}
+            title="Change panel type"
+            style={{
+              background: 'none',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: '3px',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 'var(--font-size-xs)',
+              padding: '2px 6px',
+              transition: 'color 0.15s, border-color 0.15s',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.color = 'var(--accent)';
+              e.currentTarget.style.borderColor = 'var(--accent-border)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.color = 'var(--text-muted)';
+              e.currentTarget.style.borderColor = 'var(--border-subtle)';
+            }}
+          >
+            swap
+          </button>
+          {canRemove && onRemovePanel && (
+            <button
+              onClick={onRemovePanel}
+              title="Remove panel"
+              style={{
+                background: 'none',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '3px',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 'var(--font-size-xs)',
+                padding: '2px 6px',
+                transition: 'color 0.15s, border-color 0.15s, opacity 0.15s',
+                opacity: headerHover ? 1 : 0,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--status-error)';
+                e.currentTarget.style.borderColor = 'var(--status-error)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--text-muted)';
+                e.currentTarget.style.borderColor = 'var(--border-subtle)';
+              }}
+            >
+              ×
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Panel Content */}

@@ -395,6 +395,39 @@ Migration in `loadConfig()` backfills `projectDir` into existing Docker widget s
 
 ---
 
+## [layout][css] CSS Grid forces shared column tracks across rows — use nested flex instead
+**Date:** 2026-02-25
+**Milestone:** M8
+**Tags:** layout, css, user-correction
+
+**Problem:**
+Initial M8 implementation used a single CSS Grid container for all layout presets.
+In the four-equal layout `[A|B] / [C|D]`, dragging the vertical handle between A
+and B also moved C and D because CSS Grid column tracks are shared between rows.
+When a bottom panel was removed leaving `[A|B] / [C]`, the remaining bottom panel
+couldn't be dragged to span the full width independently.
+
+**Failed Approaches:**
+- Single `display: grid` container with `gridColumn`/`gridRow` placement per panel.
+  Grid tracks are inherently shared — columns defined by row-0 panels constrain
+  row-1 panels to the same proportions.
+
+**Solution:**
+Switched to nested flex containers. Each row is its own `display: flex` container,
+so vertical drag handles between panels in one row are completely independent of
+other rows. Three rendering paths:
+1. **SingleRow** — horizontal flex with all panels + vertical drag handles
+2. **TwoRow** — vertical flex stacking two independent PanelRow components
+3. **SpanningLayout** — horizontal flex with spanning panel + vertical flex right column
+
+**Implications:**
+- Each row manages its own container ref for drag handle calculations
+- `presets.ts` no longer needs grid placement helpers (`getGridPlacement`, etc.)
+- Drag handle components are inline flex siblings, not grid overlays
+- D025 superseded by D025b in DECISIONS.md
+
+---
+
 *End of ERRORS.md*
 *Version 1.0 — Created 2026-02-24*
 *This file only grows. Entries are never deleted.*

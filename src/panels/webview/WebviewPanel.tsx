@@ -35,11 +35,27 @@ function WebviewPanel({ panelId, settings, onSettingsChange }: PanelProps) {
       }
     };
 
+    const handleDragStart = () => {
+      if (webviewRef.current) {
+        webviewRef.current.setPosition(new LogicalPosition(-10000, -10000)).catch(() => {});
+      }
+    };
+    const handleDragEnd = () => {
+      if (webviewRef.current && containerRef.current) {
+        const r = containerRef.current.getBoundingClientRect();
+        webviewRef.current.setPosition(new LogicalPosition(r.left, r.top)).catch(() => {});
+      }
+    };
+
     window.addEventListener('yggdrasil:picker-open', handlePickerOpen);
     window.addEventListener('yggdrasil:picker-close', handlePickerClose);
+    window.addEventListener('yggdrasil:drag-start', handleDragStart);
+    window.addEventListener('yggdrasil:drag-end', handleDragEnd);
     return () => {
       window.removeEventListener('yggdrasil:picker-open', handlePickerOpen);
       window.removeEventListener('yggdrasil:picker-close', handlePickerClose);
+      window.removeEventListener('yggdrasil:drag-start', handleDragStart);
+      window.removeEventListener('yggdrasil:drag-end', handleDragEnd);
     };
   }, [panelId]);
 

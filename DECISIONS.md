@@ -598,6 +598,42 @@ installed" (idle state) from "Docker error" (error state).
 
 ---
 
+## D018 — Docker widget scoped to workspace via project directory prefix
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint (user correction)
+
+**Decision:**
+Docker widget auto-discovers containers via `docker ps -a` and filters results to
+only show containers belonging to the active workspace. Filtering uses the project
+directory name as a prefix match against container names (case-insensitive).
+
+**Alternatives Considered:**
+- Global `docker ps` with no filtering — shows all containers on every workspace.
+  Rejected because it is misleading: Elementals showed Ratatoskr's containers.
+- Requiring manual `containerName` configuration per workspace — rejected because
+  users don't want to manually configure container names, and projects may have
+  multiple containers (db, redis, api, etc.).
+- Parsing `docker-compose.yml` to extract service names — more accurate but adds
+  YAML parsing dependency and filesystem reads. Rejected for complexity when the
+  naming convention approach works reliably.
+
+**Rationale:**
+Docker Compose names containers as `{directory}-{service}-{instance}` by default
+(e.g., `ratatoskr-v2-db-1`). The project directory name from `projectRoot` is
+already available in widget settings. Filtering by `name.startsWith(projectDir + '-')`
+is simple, zero-dependency, and matches Compose's default naming convention.
+Workspaces without matching containers show "No containers" (idle) instead of error.
+
+**Implications:**
+- `DockerWidgetSettings` carries `projectDir` extracted from workspace `projectRoot`
+- `docker_ps` Rust command added alongside existing `docker_inspect`
+- Migration in `loadConfig()` backfills `projectDir` into existing Docker widgets
+- Custom container names that don't follow Compose convention won't be matched;
+  the `containerName` field remains available for future explicit override support
+
+---
+
 *End of DECISIONS.md*
 *Version 1.0 — Created 2026-02-24*
 *Entries are never deleted. Superseded entries are marked [SUPERSEDED].*

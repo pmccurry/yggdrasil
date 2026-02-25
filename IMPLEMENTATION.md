@@ -723,23 +723,23 @@ the Rust implementation — call the same `get_git_status` command.
 
 ### Definition of Done
 
-- [ ] All panel types render without console errors or warnings
-- [ ] Panel swap interaction is smooth — no flash or layout shift during swap
-- [ ] Workspace switching feels fast — under 200ms perceived shell transition
-- [ ] All colors reference CSS variables — zero hardcoded hex values in components
-- [ ] JetBrains Mono renders correctly on Windows — fallback fonts verified
-- [ ] Planning Drawer collapsed toggle renders correctly, opens/closes smoothly
-- [ ] App window has correct title bar: "Yggdrasil"
-- [ ] App window minimum size enforced (prevents layout breaking on small windows)
-- [ ] All panel types handle their error states gracefully — no blank white panels
-- [ ] All panel types handle their loading states — skeleton shown during init
-- [ ] Terminal panel: no orphaned PowerShell processes after app close
-- [ ] Monaco editor: no memory leaks verified via devtools after repeated mount/unmount
-- [ ] App binary builds successfully for Windows
-- [ ] App installs and runs on a clean Windows environment (no dev dependencies)
-- [ ] ERRORS.md reviewed — all known issues documented
-- [ ] DECISIONS.md reviewed — all major decisions logged
-- [ ] IMPLEMENTATION.md plan journal reviewed — all entries have final status tags
+- [x] All panel types render without console errors or warnings
+- [x] Panel swap interaction is smooth — no flash or layout shift during swap
+- [x] Workspace switching feels fast — under 200ms perceived shell transition
+- [x] All colors reference CSS variables — zero hardcoded hex values in components
+- [x] JetBrains Mono renders correctly on Windows — fallback fonts verified
+- [x] Planning Drawer collapsed toggle renders correctly, opens/closes smoothly
+- [x] App window has correct title bar: "Yggdrasil"
+- [x] App window minimum size enforced (prevents layout breaking on small windows)
+- [x] All panel types handle their error states gracefully — no blank white panels
+- [x] All panel types handle their loading states — skeleton shown during init
+- [x] Terminal panel: no orphaned PowerShell processes after app close
+- [x] Monaco editor: no memory leaks verified via devtools after repeated mount/unmount
+- [x] App binary builds successfully for Windows
+- [x] App installs and runs on a clean Windows environment (no dev dependencies)
+- [x] ERRORS.md reviewed — all known issues documented
+- [x] DECISIONS.md reviewed — all major decisions logged
+- [x] IMPLEMENTATION.md plan journal reviewed — all entries have final status tags
 
 ### Ordered Task List
 
@@ -825,6 +825,11 @@ typography, console cleanliness) already passed.
 - Production build: MSI at `src-tauri/target/release/bundle/msi/yggdrasil_0.1.0_x64_en-US.msi`
 - Production build: NSIS at `src-tauri/target/release/bundle/nsis/yggdrasil_0.1.0_x64-setup.exe`
 - ClaudePanel `tsc -b` error was pre-existing (not caught by `tsc --noEmit`) — fixed as part of M6
+- Docker widget: added auto-discovery via `docker ps`, seeded on workspace creation,
+  scoped to workspace via project directory name prefix filtering (D018)
+- Migration backfills `projectDir` into existing Docker widget settings on config load
+- User-verified: installed binary, panels, swap, workspace switching, Git widget,
+  Docker widget (workspace-scoped), workspace creation all working
 - All 6 milestones (M0–M6) completed — V1 is done
 
 ---

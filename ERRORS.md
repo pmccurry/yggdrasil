@@ -362,6 +362,39 @@ type narrowing doesn't carry across the async function boundary.
 
 ---
 
+## [widgets][docker] Docker widget must be scoped to workspace project, not global
+
+**Date:** 2026-02-25
+**Milestone:** M6
+**Tags:** widgets, docker, user-correction
+
+**Problem:**
+Docker widget ran `docker ps` globally and displayed all containers regardless of
+which workspace was active. Ratatoskr and Elementals both showed the same "2/3 up"
+status even though the containers belonged only to Ratatoskr's docker-compose setup.
+
+**Failed Approaches:**
+- Global `docker ps` with no filtering — shows unrelated containers on every workspace.
+- Requiring a hardcoded `containerName` in settings — users don't want to manually
+  configure container names for every workspace.
+
+**Solution:**
+Filter `docker ps` output by project directory name prefix. Docker Compose names
+containers as `{directory}-{service}-{instance}` (e.g., `ratatoskr-v2-db-1`).
+The widget stores `projectDir` (extracted from `projectRoot`) in its settings and
+filters containers where `name.startsWith(projectDir + '-')`. Workspaces with no
+matching containers show "No containers" (idle state).
+
+Migration in `loadConfig()` backfills `projectDir` into existing Docker widget settings.
+
+**Implications:**
+- Docker widget settings must include `projectDir` — seeded automatically from
+  `projectRoot` on workspace creation
+- Filtering assumes Docker Compose naming convention (`{dir}-{service}-{n}`)
+- Workspaces without docker-compose correctly show idle rather than error
+
+---
+
 *End of ERRORS.md*
 *Version 1.0 — Created 2026-02-24*
 *This file only grows. Entries are never deleted.*

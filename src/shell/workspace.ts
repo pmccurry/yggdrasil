@@ -31,6 +31,13 @@ function defaultWidgets(projectRoot: string): WidgetConfig[] {
       settings: { repoPath: projectRoot },
     });
   }
+  widgets.push({
+    id: 'widget-docker',
+    type: WidgetType.Docker,
+    label: 'Docker',
+    pollInterval: 10000,
+    settings: { containerName: '' },
+  });
   return widgets;
 }
 
@@ -94,12 +101,24 @@ export async function loadConfig(): Promise<AppConfig> {
   const store = await Store.load(STORE_FILE);
   const config = await store.get<AppConfig>(CONFIG_KEY);
   if (config) {
-    // Migrate: add default widgets to workspaces that have none
+    // Migrate: seed missing default widgets into existing workspaces
     let migrated = false;
     for (const ws of config.workspaces) {
       if (ws.widgets.length === 0 && ws.projectRoot) {
         ws.widgets = defaultWidgets(ws.projectRoot);
         migrated = true;
+      } else {
+        // Add Docker widget if missing
+        if (!ws.widgets.some(w => w.type === WidgetType.Docker)) {
+          ws.widgets.push({
+            id: 'widget-docker',
+            type: WidgetType.Docker,
+            label: 'Docker',
+            pollInterval: 10000,
+            settings: { containerName: '' },
+          });
+          migrated = true;
+        }
       }
     }
     if (migrated) {

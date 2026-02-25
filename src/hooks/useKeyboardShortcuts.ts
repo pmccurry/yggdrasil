@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import type { KeyboardShortcut } from '../types/shortcuts';
-import type { Workspace, LayoutPreset } from '../types/workspace';
+import type { Workspace, LayoutPreset, PlanningDrawerContent } from '../types/workspace';
 import { PRESET_ORDER } from '../workspace/presets';
 
 interface UseKeyboardShortcutsArgs {
@@ -10,9 +10,9 @@ interface UseKeyboardShortcutsArgs {
   workspaceDispatch: React.Dispatch<
     | { type: 'SWITCH_WORKSPACE'; workspaceId: string }
     | { type: 'SET_LAYOUT_PRESET'; preset: LayoutPreset }
+    | { type: 'UPDATE_PLANNING'; planning: Partial<PlanningDrawerContent> }
   >;
   appDispatch: React.Dispatch<
-    | { type: 'TOGGLE_PLANNING_DRAWER' }
     | { type: 'SET_PANEL_FOCUS'; index: number | null }
   >;
 }
@@ -75,9 +75,12 @@ export function useKeyboardShortcuts({
         return;
       }
 
-      // drawer.toggle
-      if (action === 'drawer.toggle') {
-        appDispatch({ type: 'TOGGLE_PLANNING_DRAWER' });
+      // drawer.toggle — per-workspace via WorkspaceContext
+      if (action === 'drawer.toggle' && activeWorkspace) {
+        workspaceDispatch({
+          type: 'UPDATE_PLANNING',
+          planning: { drawerOpen: !activeWorkspace.planning.drawerOpen },
+        });
         return;
       }
 

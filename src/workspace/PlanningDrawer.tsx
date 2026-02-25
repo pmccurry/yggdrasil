@@ -1,12 +1,18 @@
-import { useAppContext } from '../store/AppContext';
+import { useWorkspaceContext } from '../store/WorkspaceContext';
+import Scratchpad from './PlanningDrawer/Scratchpad';
+import MilestoneReader from './PlanningDrawer/MilestoneReader';
 
 const COLLAPSED_WIDTH = 32;
 const EXPANDED_WIDTH = 280;
 
 function PlanningDrawer() {
-  const { state, dispatch } = useAppContext();
-  const isOpen = state.planningDrawerOpen;
+  const { dispatch, activeWorkspace } = useWorkspaceContext();
+  const isOpen = activeWorkspace?.planning.drawerOpen ?? false;
   const width = isOpen ? EXPANDED_WIDTH : COLLAPSED_WIDTH;
+
+  const toggleDrawer = () => {
+    dispatch({ type: 'UPDATE_PLANNING', planning: { drawerOpen: !isOpen } });
+  };
 
   return (
     <div style={{
@@ -23,7 +29,7 @@ function PlanningDrawer() {
       {/* Header with toggle button */}
       <div style={{
         display: 'flex',
-        alignItems: isOpen ? 'center' : 'center',
+        alignItems: 'center',
         justifyContent: isOpen ? 'space-between' : 'center',
         padding: isOpen ? '8px 10px' : '8px 0',
         flexShrink: 0,
@@ -39,7 +45,7 @@ function PlanningDrawer() {
           </span>
         )}
         <button
-          onClick={() => dispatch({ type: 'TOGGLE_PLANNING_DRAWER' })}
+          onClick={toggleDrawer}
           title={isOpen ? 'Collapse drawer (Ctrl+.)' : 'Open planning drawer (Ctrl+.)'}
           style={{
             width: '20px',
@@ -70,21 +76,25 @@ function PlanningDrawer() {
         </button>
       </div>
 
-      {/* Expanded content placeholder — M9 will add scratchpad + milestone reader */}
-      {isOpen && (
+      {/* Expanded content: Scratchpad + MilestoneReader */}
+      {isOpen && activeWorkspace && (
         <div style={{
           flex: 1,
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '16px',
-          color: 'var(--text-faint)',
-          fontFamily: 'var(--font-mono)',
-          fontSize: 'var(--font-size-xs)',
-          textAlign: 'center',
-          userSelect: 'none',
+          flexDirection: 'column',
+          overflow: 'hidden',
         }}>
-          Scratchpad &amp; milestone reader coming in M9
+          <Scratchpad
+            scratchpad={activeWorkspace.planning.scratchpad}
+            scratchpadVisible={activeWorkspace.planning.scratchpadVisible}
+            workspaceId={activeWorkspace.id}
+            dispatch={dispatch}
+          />
+          <MilestoneReader
+            projectRoot={activeWorkspace.projectRoot}
+            milestoneVisible={activeWorkspace.planning.milestoneVisible}
+            dispatch={dispatch}
+          />
         </div>
       )}
     </div>

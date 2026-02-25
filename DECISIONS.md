@@ -875,6 +875,66 @@ horizontal space.
 
 ---
 
+## D027 — File monitoring via polling, not tauri-plugin-fs watcher
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+IMPLEMENTATION.md is read via the existing `readFile` Tauri command with a 5-second
+setInterval poll. No file watcher dependency is added.
+
+**Alternatives Considered:**
+- `tauri-plugin-fs` watch API — adds a new npm and Cargo dependency for a single
+  use case. File watching on Windows has known edge cases with locked files and
+  delayed notifications. Rejected for unnecessary complexity.
+- Shorter poll interval (1s) — rejected because IMPLEMENTATION.md changes
+  infrequently and 5s provides a good balance of responsiveness and efficiency.
+
+**Rationale:**
+The readFile command already exists and works reliably. Polling every 5 seconds
+is simple, predictable, and sufficient for a file that changes only during active
+Claude Code sessions. The hook skips re-parsing if file content is unchanged,
+so the 5s poll has near-zero cost when the file hasn't changed.
+
+**Implications:**
+- No new dependencies added (npm or Cargo)
+- useMilestoneReader hook manages its own setInterval and cleanup
+- Content comparison prevents unnecessary re-renders
+
+---
+
+## D028 — Drawer state migration from AppContext to WorkspaceContext
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Planning drawer open/closed state is migrated from AppContext (global) to
+WorkspaceContext (per-workspace) via the `planning.drawerOpen` field on each
+Workspace.
+
+**Alternatives Considered:**
+- Keep drawer state in AppContext (global) — all workspaces share a single
+  drawer toggle. Rejected because the drawer content (scratchpad, milestone
+  reader) is workspace-specific, so the drawer visibility should also be
+  workspace-specific.
+
+**Rationale:**
+Each workspace has its own scratchpad notes and its own project root for
+milestone reading. A user may want the drawer open for one workspace
+(actively planning) and closed for another (focused on coding). Per-workspace
+state is the correct model.
+
+**Implications:**
+- `planningDrawerOpen` removed from AppState in AppContext.tsx
+- `TOGGLE_PLANNING_DRAWER` removed from AppAction
+- Keyboard shortcut `drawer.toggle` now dispatches `UPDATE_PLANNING` via
+  workspaceDispatch instead of appDispatch
+- Drawer state persists per workspace in config.json
+
+---
+
 *End of DECISIONS.md*
 *Version 1.0 — Created 2026-02-24*
 *Entries are never deleted. Superseded entries are marked [SUPERSEDED].*

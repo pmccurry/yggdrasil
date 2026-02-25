@@ -54,7 +54,7 @@ Every plan journal entry uses one of these status tags:
 | **— V2 —** | | | |
 | M7 — Keyboard Shortcuts | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
 | M8 — Flexible Layout & Presets | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
-| M9 — Planning Drawer Content | `[PLANNED]` | — | — |
+| M9 — Planning Drawer Content | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
 | M10 — HTTP Endpoint Widget | `[PLANNED]` | — | — |
 
 ---
@@ -1022,24 +1022,24 @@ panel controls.
 
 ### Definition of Done
 
-- [ ] PlanningDrawerContent interface added to workspace.ts schema
-- [ ] Workspace interface extended with `planning: PlanningDrawerContent`
-- [ ] loadConfig() migration backfills default planning state for V1 workspaces
-- [ ] PlanningDrawer renders two collapsible sections: Scratchpad and Milestone Reader
-- [ ] Scratchpad section: textarea persists content to workspace.planning.scratchpad on change
-- [ ] Scratchpad content switches correctly when active workspace changes
-- [ ] Scratchpad section collapses/expands, state persists in planning.scratchpadVisible
-- [ ] Milestone Reader: reads IMPLEMENTATION.md from workspace projectRoot on mount
-- [ ] Milestone Reader: detects and displays first non-[COMPLETED] milestone
-- [ ] Milestone Reader: renders definition of done checklist with correct check states
-- [ ] Milestone Reader: renders plan journal entries for active milestone with status tags
-- [ ] Milestone Reader: updates in real time when IMPLEMENTATION.md changes on disk
-- [ ] Milestone Reader: shows friendly empty state if no IMPLEMENTATION.md in projectRoot
-- [ ] Milestone Reader: shows friendly empty state if all milestones are [COMPLETED]
-- [ ] Milestone Reader section collapses/expands, state persists in planning.milestoneVisible
-- [ ] Drawer open/close state persists in planning.drawerOpen per workspace
-- [ ] All planning state persists to disk immediately via WorkspaceContext useEffect
-- [ ] `pnpm tsc --noEmit` zero errors
+- [x] PlanningDrawerContent interface added to workspace.ts schema
+- [x] Workspace interface extended with `planning: PlanningDrawerContent`
+- [x] loadConfig() migration backfills default planning state for V1 workspaces
+- [x] PlanningDrawer renders two collapsible sections: Scratchpad and Milestone Reader
+- [x] Scratchpad section: textarea persists content to workspace.planning.scratchpad on change
+- [x] Scratchpad content switches correctly when active workspace changes
+- [x] Scratchpad section collapses/expands, state persists in planning.scratchpadVisible
+- [x] Milestone Reader: reads IMPLEMENTATION.md from workspace projectRoot on mount
+- [x] Milestone Reader: detects and displays first non-[COMPLETED] milestone
+- [x] Milestone Reader: renders definition of done checklist with correct check states
+- [x] Milestone Reader: renders plan journal entries for active milestone with status tags
+- [x] Milestone Reader: updates in real time when IMPLEMENTATION.md changes on disk
+- [x] Milestone Reader: shows friendly empty state if no IMPLEMENTATION.md in projectRoot
+- [x] Milestone Reader: shows friendly empty state if all milestones are [COMPLETED]
+- [x] Milestone Reader section collapses/expands, state persists in planning.milestoneVisible
+- [x] Drawer open/close state persists in planning.drawerOpen per workspace
+- [x] All planning state persists to disk immediately via WorkspaceContext useEffect
+- [x] `pnpm tsc --noEmit` zero errors
 
 ### Ordered Task List
 
@@ -1120,7 +1120,34 @@ If the Tauri watch plugin requires additional Cargo.toml additions, log in DECIS
 
 ### M9 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### M9 Implementation `[COMPLETED]`
+
+**Date:** 2026-02-25
+
+**What was done:**
+1. Added `UPDATE_PLANNING` action to WorkspaceContext reducer — merges partial
+   PlanningDrawerContent into active workspace
+2. Migrated drawer open/close state from AppContext (global) to WorkspaceContext
+   (per-workspace) — removed `planningDrawerOpen` and `TOGGLE_PLANNING_DRAWER`
+   from AppContext
+3. Rewired `drawer.toggle` keyboard shortcut to dispatch `UPDATE_PLANNING` through
+   `workspaceDispatch` instead of `appDispatch`
+4. Created `useMilestoneReader` hook with pure `parseImplementationMd` parser:
+   - Parses status snapshot table to find first non-COMPLETED milestone
+   - Extracts Definition of Done checklist items with check state
+   - Extracts plan journal entries with status tags
+   - 5-second polling via setInterval + readFile (D027)
+   - Content comparison skips re-parse when unchanged
+5. Created `Scratchpad.tsx` — debounced textarea with workspace-switch sync
+   and unmount flush
+6. Created `MilestoneReader.tsx` — three display states (error, all complete,
+   active milestone with checklist and journal)
+7. Rewrote `PlanningDrawer.tsx` — uses WorkspaceContext, renders Scratchpad
+   and MilestoneReader in vertical flex layout
+
+**Decisions logged:** D027 (polling over watcher), D028 (drawer state migration)
+
+**Build verification:** `pnpm tsc --noEmit` zero errors, `pnpm build` clean
 
 ---
 

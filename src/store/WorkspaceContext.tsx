@@ -1,7 +1,7 @@
 import { createContext, useContext, useReducer, useEffect, useRef, type ReactNode } from 'react';
 import { PanelType } from '../types/panels';
 import type { PanelSettings } from '../types/panels';
-import type { Workspace, AppConfig, LayoutPreset } from '../types/workspace';
+import type { Workspace, AppConfig, LayoutPreset, PlanningDrawerContent } from '../types/workspace';
 import type { KeyboardShortcut } from '../types/shortcuts';
 import { PANEL_REGISTRY } from '../panels/registry';
 import { PRESET_CONFIGS } from '../workspace/presets';
@@ -30,7 +30,8 @@ type WorkspaceAction =
   | { type: 'ADD_PANEL'; panelType: PanelType }
   | { type: 'REMOVE_PANEL'; slotIndex: number }
   | { type: 'UPDATE_PANEL_SIZE_WEIGHT'; slotIndex: number; sizeWeight: number }
-  | { type: 'UPDATE_ROW_WEIGHT'; rowWeight: number };
+  | { type: 'UPDATE_ROW_WEIGHT'; rowWeight: number }
+  | { type: 'UPDATE_PLANNING'; planning: Partial<PlanningDrawerContent> };
 
 // --- Reducer ---
 
@@ -151,6 +152,15 @@ function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): Works
         workspaces: state.workspaces.map(ws => {
           if (ws.id !== state.activeWorkspaceId) return ws;
           return { ...ws, layout: { ...ws.layout, rowWeight: action.rowWeight }, updatedAt: new Date().toISOString() };
+        }),
+      };
+    }
+    case 'UPDATE_PLANNING': {
+      return {
+        ...state,
+        workspaces: state.workspaces.map(ws => {
+          if (ws.id !== state.activeWorkspaceId) return ws;
+          return { ...ws, planning: { ...ws.planning, ...action.planning }, updatedAt: new Date().toISOString() };
         }),
       };
     }

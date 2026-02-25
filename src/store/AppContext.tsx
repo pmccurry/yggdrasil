@@ -1,18 +1,14 @@
 import { createContext, useContext, useReducer, type ReactNode } from 'react';
 
 interface AppState {
-  planningDrawerOpen: boolean;
   focusedPanelIndex: number | null;
 }
 
 type AppAction =
-  | { type: 'TOGGLE_PLANNING_DRAWER' }
   | { type: 'SET_PANEL_FOCUS'; index: number | null };
 
 function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
-    case 'TOGGLE_PLANNING_DRAWER':
-      return { ...state, planningDrawerOpen: !state.planningDrawerOpen };
     case 'SET_PANEL_FOCUS':
       return { ...state, focusedPanelIndex: action.index };
     default:
@@ -29,7 +25,6 @@ const AppContext = createContext<AppContextValue | null>(null);
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(appReducer, {
-    planningDrawerOpen: false,
     focusedPanelIndex: null,
   });
 

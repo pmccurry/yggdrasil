@@ -1,6 +1,8 @@
 import { Store } from '@tauri-apps/plugin-store';
 import { open } from '@tauri-apps/plugin-dialog';
 import { PanelType } from '../types/panels';
+import { WidgetType } from '../types/widgets';
+import type { WidgetConfig } from '../types/widgets';
 import type { AppConfig, Workspace, WorkspaceActivationHook } from '../types/workspace';
 
 const STORE_FILE = 'config.json';
@@ -16,6 +18,20 @@ function defaultOnActivate(projectRoot: string): WorkspaceActivationHook {
 
 function generateId(): string {
   return `ws-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function defaultWidgets(projectRoot: string): WidgetConfig[] {
+  const widgets: WidgetConfig[] = [];
+  if (projectRoot) {
+    widgets.push({
+      id: 'widget-git',
+      type: WidgetType.Git,
+      label: 'Git',
+      pollInterval: 15000,
+      settings: { repoPath: projectRoot },
+    });
+  }
+  return widgets;
 }
 
 export function createDefaultConfig(): AppConfig {
@@ -34,7 +50,7 @@ export function createDefaultConfig(): AppConfig {
         { id: 'slot-2', type: PanelType.Claude, settings: { mode: 'desktop', desktopPort: 5173, webviewUrl: 'https://claude.ai' } },
       ],
     },
-    widgets: [],
+    widgets: defaultWidgets(''),
     onActivate: defaultOnActivate(''),
     createdAt: now,
     updatedAt: now,
@@ -67,7 +83,7 @@ export function createNewWorkspace(
         { id: 'slot-2', type: PanelType.Claude, settings: { mode: 'desktop', desktopPort: 5173, webviewUrl: 'https://claude.ai' } },
       ],
     },
-    widgets: [],
+    widgets: defaultWidgets(projectRoot),
     onActivate: defaultOnActivate(projectRoot),
     createdAt: now,
     updatedAt: now,
@@ -77,7 +93,21 @@ export function createNewWorkspace(
 export async function loadConfig(): Promise<AppConfig> {
   const store = await Store.load(STORE_FILE);
   const config = await store.get<AppConfig>(CONFIG_KEY);
-  if (config) return config;
+  if (config) {
+    // Migrate: add default widgets to workspaces that have none
+    let migrated = false;
+    for (const ws of config.workspaces) {
+      if (ws.widgets.length === 0 && ws.projectRoot) {
+        ws.widgets = defaultWidgets(ws.projectRoot);
+        migrated = true;
+      }
+    }
+    if (migrated) {
+      await store.set(CONFIG_KEY, config);
+      await store.save();
+    }
+    return config;
+  }
 
   const defaultConfig = createDefaultConfig();
   await store.set(CONFIG_KEY, defaultConfig);

@@ -1222,10 +1222,10 @@ This avoids adding reqwest. Log the decision in DECISIONS.md either way.
 
 ---
 
-## APPENDIX A — V2 CONSIDERATIONS
+## APPENDIX A — V3+ CONSIDERATIONS
 
-Items discussed but explicitly deferred from V1. These are not forgotten —
-they are sequenced. Log here as they are identified so V2 planning has a
+Items discussed but explicitly deferred from V1/V2. These are not forgotten —
+they are sequenced. Log here as they are identified so V3 planning has a
 starting point.
 
 **Delivered in V2 (M7–M10):**

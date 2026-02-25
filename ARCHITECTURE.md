@@ -79,9 +79,9 @@ V1 delivered:
 - Planning Drawer collapsed toggle placeholder
 - Full five-file reference system (CLAUDE.md enforced)
 
-### 1.4 V2 Scope (Active)
+### 1.4 V2 Scope — COMPLETED 2026-02-25
 
-V2 includes:
+V2 delivered:
 - App-level keyboard shortcuts (workspace switching, panel focus, drawer toggle)
 - Flexible panel layout: variable panel count (1–4), two-row max
 - Four layout presets: 2-equal, 1-large+1-medium, 1-large+2-stacked, 4-equal
@@ -93,8 +93,10 @@ V2 includes:
 - HTTP endpoint widget (polls any URL, shows status — covers VPS health checks)
 - Schema migration from V1 fixed 3-panel tuple to V2 flexible panel array
 
-V2 explicitly excludes:
-- True arbitrary grid (rows × columns) — two-row max only
+### 1.5 V3 Scope (Not Started)
+
+V3 candidates (see IMPLEMENTATION.md Appendix A):
+- True arbitrary grid (rows × columns) — two-row max only in V2
 - Plugin/extension system
 - Cloud sync or user accounts
 - Git operations beyond read-only status display
@@ -843,15 +845,13 @@ export async function pickFolder(): Promise<string | null>
 export async function detectClaudeDesktop(port: number): Promise<boolean>
 export async function launchClaudeDesktop(): Promise<void>
 
-// V2 additions:
-
-// src/shell/planning.ts
-export async function readFile(path: string): Promise<string>          // reads IMPLEMENTATION.md
-export async function watchFile(path: string, cb: () => void): Promise<UnwatchFn>  // Tauri watch API
+// src/shell/docker.ts
+export async function dockerInspect(containerName: string): Promise<string>
+export async function dockerPs(): Promise<DockerContainer[]>
 
 // src/shell/http.ts
-export async function pollEndpoint(url: string, expectedStatus: number): Promise<number>
-// returns actual HTTP status code. Runs Rust-side to avoid CORS issues.
+export async function pollEndpoint(url: string, timeoutSecs: number): Promise<number>
+// returns actual HTTP status code. Runs Rust-side via curl to avoid CORS (D029).
 ```
 
 ---
@@ -876,6 +876,8 @@ Yggdrasil/
 │   │   │   ├── shell.rs
 │   │   │   ├── filesystem.rs
 │   │   │   ├── git.rs
+│   │   │   ├── docker.rs
+│   │   │   ├── http.rs
 │   │   │   ├── claude.rs
 │   │   │   └── workspace.rs
 │   │   └── types.rs
@@ -900,6 +902,8 @@ Yggdrasil/
 │   │   ├── terminal.ts
 │   │   ├── filesystem.ts
 │   │   ├── git.ts
+│   │   ├── docker.ts
+│   │   ├── http.ts
 │   │   ├── workspace.ts
 │   │   └── claude.ts
 │   │

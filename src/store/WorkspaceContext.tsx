@@ -2,6 +2,7 @@ import { createContext, useContext, useReducer, useEffect, useRef, type ReactNod
 import { PanelType } from '../types/panels';
 import type { PanelSettings } from '../types/panels';
 import type { Workspace, AppConfig } from '../types/workspace';
+import type { KeyboardShortcut } from '../types/shortcuts';
 import { loadConfig, saveConfig } from '../shell/workspace';
 
 // --- State Shape ---
@@ -10,6 +11,7 @@ interface WorkspaceState {
   loading: boolean;
   workspaces: Workspace[];
   activeWorkspaceId: string;
+  shortcuts: KeyboardShortcut[];
 }
 
 // --- Actions ---
@@ -36,6 +38,7 @@ function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): Works
         loading: false,
         workspaces: action.config.workspaces,
         activeWorkspaceId: action.config.activeWorkspaceId,
+        shortcuts: action.config.shortcuts,
       };
     }
     case 'SWITCH_WORKSPACE': {
@@ -119,6 +122,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     loading: true,
     workspaces: [],
     activeWorkspaceId: '',
+    shortcuts: [],
   });
 
   const initialLoadDone = useRef(false);
@@ -138,9 +142,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       version: '1.0.0',
       activeWorkspaceId: state.activeWorkspaceId,
       workspaces: state.workspaces,
+      shortcuts: state.shortcuts,
     };
     saveConfig(config);
-  }, [state.workspaces, state.activeWorkspaceId, state.loading]);
+  }, [state.workspaces, state.activeWorkspaceId, state.shortcuts, state.loading]);
 
   const activeWorkspace = state.workspaces.find(w => w.id === state.activeWorkspaceId);
 

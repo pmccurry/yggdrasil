@@ -3,7 +3,8 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { PanelType } from '../types/panels';
 import { WidgetType } from '../types/widgets';
 import type { WidgetConfig } from '../types/widgets';
-import type { AppConfig, Workspace, WorkspaceActivationHook } from '../types/workspace';
+import type { AppConfig, Workspace, WorkspaceActivationHook, PlanningDrawerContent } from '../types/workspace';
+import { DEFAULT_SHORTCUTS } from '../types/shortcuts';
 
 const STORE_FILE = 'config.json';
 const CONFIG_KEY = 'config';
@@ -13,6 +14,15 @@ function defaultOnActivate(projectRoot: string): WorkspaceActivationHook {
     terminalStartupCommands: projectRoot ? [`cd ${projectRoot}`] : [],
     environmentVariables: {},
     claudeDesktopProjectPath: projectRoot,
+  };
+}
+
+function defaultPlanning(): PlanningDrawerContent {
+  return {
+    scratchpad: '',
+    scratchpadVisible: true,
+    milestoneVisible: true,
+    drawerOpen: false,
   };
 }
 
@@ -60,6 +70,7 @@ export function createDefaultConfig(): AppConfig {
     },
     widgets: defaultWidgets(''),
     onActivate: defaultOnActivate(''),
+    planning: defaultPlanning(),
     createdAt: now,
     updatedAt: now,
   };
@@ -68,6 +79,7 @@ export function createDefaultConfig(): AppConfig {
     version: '1.0.0',
     activeWorkspaceId: id,
     workspaces: [defaultWorkspace],
+    shortcuts: DEFAULT_SHORTCUTS,
   };
 }
 
@@ -93,6 +105,7 @@ export function createNewWorkspace(
     },
     widgets: defaultWidgets(projectRoot),
     onActivate: defaultOnActivate(projectRoot),
+    planning: defaultPlanning(),
     createdAt: now,
     updatedAt: now,
   };
@@ -102,8 +115,15 @@ export async function loadConfig(): Promise<AppConfig> {
   const store = await Store.load(STORE_FILE);
   const config = await store.get<AppConfig>(CONFIG_KEY);
   if (config) {
-    // Migrate: seed missing default widgets into existing workspaces
     let migrated = false;
+
+    // Migrate: add shortcuts to AppConfig if missing
+    if (!config.shortcuts) {
+      config.shortcuts = DEFAULT_SHORTCUTS;
+      migrated = true;
+    }
+
+    // Migrate: seed missing default widgets and planning into existing workspaces
     for (const ws of config.workspaces) {
       if (ws.widgets.length === 0 && ws.projectRoot) {
         ws.widgets = defaultWidgets(ws.projectRoot);
@@ -128,6 +148,11 @@ export async function loadConfig(): Promise<AppConfig> {
             migrated = true;
           }
         }
+      }
+      // Migrate: add planning to workspace if missing
+      if (!ws.planning) {
+        ws.planning = defaultPlanning();
+        migrated = true;
       }
     }
     if (migrated) {

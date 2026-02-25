@@ -1,7 +1,7 @@
 # ARCHITECTURE.md
 # Yggdrasil — Project Constitution
-# Last Updated: 2026-02-24
-# Version: 1.1
+# Last Updated: 2026-02-25
+# Version: 2.0
 # Status: ACTIVE
 
 ---
@@ -61,33 +61,46 @@ accounts for its space from day one so it never requires structural surgery to a
 - **The pre-flight checklist is non-negotiable.** Claude Code reads all reference files
   before writing any code. No exceptions.
 
-### 1.3 V1 Scope (Hard Boundaries)
+### 1.3 V1 Scope — COMPLETED 2026-02-25
 
-V1 includes:
+V1 delivered:
 - Project workspace sidebar with switching
 - Three-panel fixed layout per workspace
 - Panel type swapping via picker
-- Terminal panel (real PowerShell via xterm.js + Tauri shell)
-- Webview panel (embedded URL via Tauri WebviewWindow)
+- Terminal panel (real PowerShell via portable-pty + xterm.js)
+- Webview panel (Tauri child Webview, unstable feature)
 - File tree panel (project root aware, git status indicators)
 - Monaco editor panel (syntax highlighting, file open from tree)
-- Claude Desktop panel (local Claude Desktop integration, no API)
-- Status widget bar (per workspace, real data sources)
-- Workspace config persisted to JSON on local disk
+- Claude Desktop panel (claude.ai webview via Tauri child Webview)
+- Status widget bar (Docker workspace-scoped, Git read-only)
+- Workspace config persisted to JSON (AppData/Roaming/Yggdrasil)
 - Workspace creation via native OS folder picker dialog
-- Planning Drawer placeholder in layout (collapsed toggle in V1, V2 content)
-- CLAUDE.md pre-flight enforcement
+- Workspace activation hook (onActivate, startupCommands)
+- Planning Drawer collapsed toggle placeholder
+- Full five-file reference system (CLAUDE.md enforced)
 
-V1 explicitly excludes:
-- Panel resizing via drag handles
-- Adding or removing panels dynamically at runtime
+### 1.4 V2 Scope (Active)
+
+V2 includes:
+- App-level keyboard shortcuts (workspace switching, panel focus, drawer toggle)
+- Flexible panel layout: variable panel count (1–4), two-row max
+- Four layout presets: 2-equal, 1-large+1-medium, 1-large+2-stacked, 4-equal
+- Free panel resizing via drag handles within and between rows
+- Rows are an invisible implementation detail — never surfaced in UI
+- Panel size weights persisted per workspace layout
+- Planning Drawer content: per-workspace scratchpad + live IMPLEMENTATION.md milestone reader
+- Both drawer sections independently collapsible, state persisted per workspace
+- HTTP endpoint widget (polls any URL, shows status — covers VPS health checks)
+- Schema migration from V1 fixed 3-panel tuple to V2 flexible panel array
+
+V2 explicitly excludes:
+- True arbitrary grid (rows × columns) — two-row max only
 - Plugin/extension system
 - Cloud sync or user accounts
-- Multi-window support
 - Git operations beyond read-only status display
-- Planning Drawer content and functionality (layout space reserved only)
-- Claude API integration (Desktop integration only in V1)
-- Any panel type not listed above
+- Claude API integration
+- Token usage widgets (no public API available from providers)
+- Any panel type not already in V1
 
 ---
 
@@ -338,9 +351,10 @@ export interface PanelProps {
 export type WidgetStatus = 'ok' | 'warn' | 'error' | 'idle' | 'loading';
 
 export enum WidgetType {
-  Docker  = 'docker',
-  Git     = 'git',
-  Generic = 'generic',
+  Docker       = 'docker',
+  Git          = 'git',
+  HttpEndpoint = 'http-endpoint',
+  Generic      = 'generic',
 }
 
 export interface WidgetConfig {
@@ -363,6 +377,12 @@ export interface GitWidgetSettings extends WidgetSettings {
   repoPath: string;
 }
 
+export interface HttpEndpointWidgetSettings extends WidgetSettings {
+  url:            string;  // endpoint to poll e.g. https://myserver.com/health
+  expectedStatus: number;  // HTTP status that means healthy (default: 200)
+  label:          string;  // display label e.g. 'VPS' or 'API'
+}
+
 export interface WidgetState {
   status:   WidgetStatus;
   value:    string;
@@ -375,21 +395,47 @@ export interface WidgetState {
 ```typescript
 // src/types/workspace.ts
 
+// V1: fixed tuple of 3. V2: flexible array with size weights and row assignment.
 export interface PanelSlot {
-  id:       string;       // 'slot-0' | 'slot-1' | 'slot-2'
-  type:     PanelType;
-  settings: PanelSettings;
+  id:          string;       // unique e.g. 'slot-0', 'slot-1'
+  type:        PanelType;
+  settings:    PanelSettings;
+  sizeWeight:  number;       // relative flex weight within its row (default: 1)
+  row:         0 | 1;        // which row this panel lives in (0 = top, 1 = bottom)
 }
 
+export type LayoutPreset =
+  | 'two-equal'          // [A | B]                    — 2 panels, 1 row
+  | 'large-medium'       // [A (large) | B (medium)]   — 2 panels, 1 row, weighted
+  | 'large-two-stacked'  // [A (large) | B / C]        — 3 panels, B and C stacked in row 1
+  | 'four-equal';        // [A | B] / [C | D]          — 4 panels, 2 rows equal
+
 export interface WorkspaceLayout {
-  panels: [PanelSlot, PanelSlot, PanelSlot]; // exactly 3 in V1
+  preset:      LayoutPreset;
+  rowWeight:   number;       // relative height weight of row 0 vs row 1 (default: 1)
+                             // row 1 height = (1 / rowWeight) * row 0 height
+  panels:      PanelSlot[];  // ordered array, 1–4 panels
 }
+
+// V2 schema migration: V1 configs have panels as a fixed 3-tuple with no
+// sizeWeight or row fields. loadConfig() backfills defaults on load:
+// - sizeWeight defaults to 1 for all slots
+// - row defaults to 0 for all slots (single row)
+// - preset defaults to 'large-medium' (closest to V1 three-equal layout)
+// - rowWeight defaults to 1
 
 export interface WorkspaceActivationHook {
   terminalStartupCommands: string[];               // fired in every terminal panel on mount
   environmentVariables:    Record<string, string>; // injected into terminal environment
   claudeDesktopProjectPath?: string;               // hints Claude Desktop to this path on activation
                                                    // defaults to projectRoot if not specified
+}
+
+export interface PlanningDrawerContent {
+  scratchpad:          string;   // freeform per-workspace notes, persisted to config
+  scratchpadVisible:   boolean;  // user can collapse scratchpad section independently
+  milestoneVisible:    boolean;  // user can collapse milestone reader section independently
+  drawerOpen:          boolean;  // overall drawer open/closed state
 }
 
 export interface Workspace {
@@ -401,6 +447,7 @@ export interface Workspace {
   layout:      WorkspaceLayout;
   widgets:     WidgetConfig[];
   onActivate:  WorkspaceActivationHook;  // fires every time this workspace becomes active
+  planning:    PlanningDrawerContent;    // V2: planning drawer state and content
   createdAt:   string;   // ISO date string
   updatedAt:   string;   // ISO date string
 }
@@ -409,8 +456,55 @@ export interface AppConfig {
   version:           string;
   activeWorkspaceId: string;
   workspaces:        Workspace[];
+  shortcuts:         KeyboardShortcut[];  // V2: user-configurable, defaults to DEFAULT_SHORTCUTS
 }
 ```
+
+### 6.5 Keyboard Shortcut Schema
+
+```typescript
+// src/types/shortcuts.ts
+
+// All shortcut actions available in the app
+export type ShortcutAction =
+  | 'workspace.switch.1'       // activate workspace slot 1
+  | 'workspace.switch.2'       // activate workspace slot 2
+  | 'workspace.switch.3'       // activate workspace slot 3
+  | 'workspace.switch.4'       // activate workspace slot 4
+  | 'workspace.switch.5'       // activate workspace slot 5
+  | 'panel.focus.0'            // focus panel slot 0
+  | 'panel.focus.1'            // focus panel slot 1
+  | 'panel.focus.2'            // focus panel slot 2
+  | 'panel.focus.3'            // focus panel slot 3 (V2 layouts may have 4 panels)
+  | 'drawer.toggle'            // open/close planning drawer
+  | 'layout.preset.cycle';     // cycle through layout presets
+
+export interface KeyboardShortcut {
+  action:  ShortcutAction;
+  keys:    string;    // key combo string e.g. 'ctrl+1', 'ctrl+shift+p'
+  enabled: boolean;
+}
+
+// Default shortcuts — all app-level, no OS global registration
+export const DEFAULT_SHORTCUTS: KeyboardShortcut[] = [
+  { action: 'workspace.switch.1', keys: 'ctrl+1', enabled: true },
+  { action: 'workspace.switch.2', keys: 'ctrl+2', enabled: true },
+  { action: 'workspace.switch.3', keys: 'ctrl+3', enabled: true },
+  { action: 'workspace.switch.4', keys: 'ctrl+4', enabled: true },
+  { action: 'workspace.switch.5', keys: 'ctrl+5', enabled: true },
+  { action: 'panel.focus.0',      keys: 'alt+1',  enabled: true },
+  { action: 'panel.focus.1',      keys: 'alt+2',  enabled: true },
+  { action: 'panel.focus.2',      keys: 'alt+3',  enabled: true },
+  { action: 'panel.focus.3',      keys: 'alt+4',  enabled: true },
+  { action: 'drawer.toggle',      keys: 'ctrl+.',  enabled: true },
+  { action: 'layout.preset.cycle',keys: 'ctrl+shift+l', enabled: true },
+];
+```
+
+Shortcuts are registered via a single `useKeyboardShortcuts` hook mounted at the App
+root level. The hook listens to `keydown` events on `window`. All shortcuts are
+app-level — they only fire when the Yggdrasil window is focused. No OS-level global
+shortcut registration. Shortcuts config lives in AppConfig and is user-editable in V2.
 
 ### 6.4 Persisted Config Shape (JSON)
 
@@ -740,9 +834,6 @@ export async function readFile(path: string): Promise<string>
 // src/shell/git.ts
 export async function getGitStatus(repoPath: string): Promise<GitStatus>
 
-// src/shell/docker.ts
-export async function dockerInspect(containerName: string): Promise<string>
-
 // src/shell/workspace.ts
 export async function loadConfig(): Promise<AppConfig>
 export async function saveConfig(config: AppConfig): Promise<void>
@@ -751,6 +842,16 @@ export async function pickFolder(): Promise<string | null>
 // src/shell/claude.ts
 export async function detectClaudeDesktop(port: number): Promise<boolean>
 export async function launchClaudeDesktop(): Promise<void>
+
+// V2 additions:
+
+// src/shell/planning.ts
+export async function readFile(path: string): Promise<string>          // reads IMPLEMENTATION.md
+export async function watchFile(path: string, cb: () => void): Promise<UnwatchFn>  // Tauri watch API
+
+// src/shell/http.ts
+export async function pollEndpoint(url: string, expectedStatus: number): Promise<number>
+// returns actual HTTP status code. Runs Rust-side to avoid CORS issues.
 ```
 
 ---
@@ -775,7 +876,6 @@ Yggdrasil/
 │   │   │   ├── shell.rs
 │   │   │   ├── filesystem.rs
 │   │   │   ├── git.rs
-│   │   │   ├── docker.rs
 │   │   │   ├── claude.rs
 │   │   │   └── workspace.rs
 │   │   └── types.rs
@@ -789,7 +889,8 @@ Yggdrasil/
 │   ├── types/
 │   │   ├── workspace.ts
 │   │   ├── panels.ts
-│   │   └── widgets.ts
+│   │   ├── widgets.ts
+│   │   └── shortcuts.ts    # V2: ShortcutAction, KeyboardShortcut, DEFAULT_SHORTCUTS
 │   │
 │   ├── store/
 │   │   ├── WorkspaceContext.tsx
@@ -799,7 +900,6 @@ Yggdrasil/
 │   │   ├── terminal.ts
 │   │   ├── filesystem.ts
 │   │   ├── git.ts
-│   │   ├── docker.ts
 │   │   ├── workspace.ts
 │   │   └── claude.ts
 │   │
@@ -834,7 +934,13 @@ Yggdrasil/
 │   │   ├── Sidebar.tsx
 │   │   ├── StatusBar.tsx
 │   │   ├── LayoutGrid.tsx
-│   │   ├── PlanningDrawer.tsx      # V1: collapsed toggle only
+│   │   ├── DragHandle.tsx          # V2: resize handle between panels
+│   │   ├── LayoutPresetPicker.tsx  # V2: four preset options toolbar
+│   │   ├── PanelAddButton.tsx      # V2: + button to add panels
+│   │   ├── PlanningDrawer.tsx      # V2: full content (was V1 toggle only)
+│   │   ├── PlanningDrawer/
+│   │   │   ├── Scratchpad.tsx      # V2: per-workspace freeform notes
+│   │   │   └── MilestoneReader.tsx # V2: live IMPLEMENTATION.md viewer
 │   │   ├── WorkspaceCard.tsx
 │   │   └── CreateWorkspaceModal.tsx
 │   │
@@ -845,13 +951,18 @@ Yggdrasil/
 │   │   │   └── DockerWidget.tsx
 │   │   ├── git/
 │   │   │   └── GitWidget.tsx
+│   │   ├── http-endpoint/          # V2
+│   │   │   └── HttpEndpointWidget.tsx
 │   │   └── generic/
 │   │       └── GenericWidget.tsx
 │   │
 │   ├── hooks/
 │   │   ├── useWorkspace.ts
 │   │   ├── usePanel.ts
-│   │   └── useWidgets.ts
+│   │   ├── useWidgets.ts
+│   │   ├── useKeyboardShortcuts.ts  # V2: app-level shortcut listener
+│   │   ├── useLayoutDrag.ts         # V2: drag handle resize logic
+│   │   └── useMilestoneReader.ts    # V2: IMPLEMENTATION.md file watcher + parser
 │   │
 │   ├── theme/
 │   │   ├── variables.css
@@ -966,6 +1077,32 @@ ports if configured port fails. Fallback to claude.ai webview is always availabl
 **Risk:** Git CLI invocation can be slow on large repositories.
 **Mitigation:** 15-second poll interval by default. All git calls async and
 non-blocking. Never blocks UI or other panels.
+
+---
+
+## 15.6 Drag Handle Resize on Native Webview Panels
+
+**Risk:** Native Tauri child webviews (Webview and Claude panels) overlay the DOM
+using absolute positioning via ResizeObserver. When a drag handle between panels is
+being dragged, the native webview must be moved off-screen (setPosition -10000,-10000)
+during the drag to prevent it from capturing pointer events. The webview is
+repositioned when the drag ends. This is the same pattern as the PanelPicker fix
+documented in ERRORS.md.
+
+**Mitigation:** DragHandle component signals drag start/end to adjacent PanelContainers.
+PanelContainers that host webview panels move their webview off-screen on drag start
+and restore on drag end. This is a known pattern from V1 — not a new risk.
+
+## 15.7 IMPLEMENTATION.md Parsing
+
+**Risk:** The milestone reader parses IMPLEMENTATION.md using markdown heading patterns
+to detect active milestones. If the file format deviates significantly from the
+established schema (wrong heading levels, missing status tags), parsing may surface
+the wrong milestone or fail silently.
+
+**Mitigation:** Parser is lenient — if it cannot identify an active milestone, the
+section shows a friendly empty state rather than an error. The established file format
+is documented in IMPLEMENTATION.md itself and enforced by CLAUDE.md.
 
 ---
 

@@ -1,38 +1,55 @@
-import { WorkspaceProvider } from './store/WorkspaceContext';
-import { AppProvider } from './store/AppContext';
+import { WorkspaceProvider, useWorkspaceContext } from './store/WorkspaceContext';
+import { AppProvider, useAppContext } from './store/AppContext';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import Sidebar from './workspace/Sidebar';
 import StatusBar from './workspace/StatusBar';
 import LayoutGrid from './workspace/LayoutGrid';
 import PlanningDrawer from './workspace/PlanningDrawer';
 
+function AppShell() {
+  const { state: wsState, dispatch: wsDispatch } = useWorkspaceContext();
+  const { dispatch: appDispatch } = useAppContext();
+
+  useKeyboardShortcuts({
+    shortcuts: wsState.shortcuts,
+    workspaces: wsState.workspaces,
+    workspaceDispatch: wsDispatch,
+    appDispatch,
+  });
+
+  return (
+    <div style={{
+      width: '100vw',
+      height: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      backgroundColor: 'var(--bg-base)',
+    }}>
+      {/* Top bar: StatusBar spans above the panel grid */}
+      <StatusBar />
+
+      {/* Main area: Sidebar | LayoutGrid | PlanningDrawer */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        overflow: 'hidden',
+      }}>
+        <Sidebar />
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          <LayoutGrid />
+        </div>
+        <PlanningDrawer />
+      </div>
+    </div>
+  );
+}
+
 function App() {
   return (
     <AppProvider>
       <WorkspaceProvider>
-        <div style={{
-          width: '100vw',
-          height: '100vh',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          backgroundColor: 'var(--bg-base)',
-        }}>
-          {/* Top bar: StatusBar spans above the panel grid */}
-          <StatusBar />
-
-          {/* Main area: Sidebar | LayoutGrid | PlanningDrawer */}
-          <div style={{
-            flex: 1,
-            display: 'flex',
-            overflow: 'hidden',
-          }}>
-            <Sidebar />
-            <div style={{ flex: 1, overflow: 'hidden' }}>
-              <LayoutGrid />
-            </div>
-            <PlanningDrawer />
-          </div>
-        </div>
+        <AppShell />
       </WorkspaceProvider>
     </AppProvider>
   );

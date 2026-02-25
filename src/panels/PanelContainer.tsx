@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react';
+import { Suspense, useState, useEffect, useRef } from 'react';
 import { PanelType } from '../types/panels';
 import type { PanelProps } from '../types/panels';
 import { PANEL_REGISTRY } from './registry';
@@ -9,10 +9,25 @@ interface PanelContainerProps {
   panelType: PanelType;
   panelProps: PanelProps;
   onSwapPanel: (newType: PanelType) => void;
+  isFocused?: boolean;
 }
 
-function PanelContainer({ panelType, panelProps, onSwapPanel }: PanelContainerProps) {
+function PanelContainer({ panelType, panelProps, onSwapPanel, isFocused }: PanelContainerProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [showFocus, setShowFocus] = useState(false);
+  const focusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (isFocused) {
+      setShowFocus(true);
+      focusTimerRef.current = setTimeout(() => setShowFocus(false), 2000);
+    } else {
+      setShowFocus(false);
+    }
+    return () => {
+      if (focusTimerRef.current) clearTimeout(focusTimerRef.current);
+    };
+  }, [isFocused]);
+
   const entry = PANEL_REGISTRY[panelType];
   const PanelComponent = entry.component;
 
@@ -44,10 +59,12 @@ function PanelContainer({ panelType, panelProps, onSwapPanel }: PanelContainerPr
         justifyContent: 'space-between',
         padding: '0 10px',
         backgroundColor: 'var(--bg-elevated)',
+        borderTop: showFocus ? '2px solid var(--accent)' : '2px solid transparent',
         borderBottom: '1px solid var(--border-subtle)',
         userSelect: 'none',
         position: 'relative',
         zIndex: 10,
+        transition: 'border-top-color 0.2s',
       }}>
         <div style={{
           display: 'flex', alignItems: 'center', gap: '6px',

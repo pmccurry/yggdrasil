@@ -51,6 +51,11 @@ Every plan journal entry uses one of these status tags:
 | M4 — Remaining Panels | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
 | M5 — Status Widgets | `[COMPLETED]` | 2026-02-24 | 2026-02-24 |
 | M6 — Polish & V1 Close | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
+| **— V2 —** | | | |
+| M7 — Keyboard Shortcuts | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
+| M8 — Flexible Layout & Presets | `[PLANNED]` | — | — |
+| M9 — Planning Drawer Content | `[PLANNED]` | — | — |
+| M10 — HTTP Endpoint Widget | `[PLANNED]` | — | — |
 
 ---
 
@@ -834,24 +839,348 @@ typography, console cleanliness) already passed.
 
 ---
 
+## MILESTONE 7 — KEYBOARD SHORTCUTS
+
+### Definition of Done
+
+- [ ] `src/types/shortcuts.ts` created with ShortcutAction, KeyboardShortcut, DEFAULT_SHORTCUTS
+- [ ] `useKeyboardShortcuts` hook mounted at App root, listens to window keydown
+- [ ] Ctrl+1 through Ctrl+5 switch to workspace slots 1–5 (no-op if slot doesn't exist)
+- [ ] Alt+1 through Alt+4 focus panel slots 0–3 (brings panel to foreground visually)
+- [ ] Ctrl+. toggles Planning Drawer open/closed
+- [ ] Ctrl+Shift+L cycles through layout presets
+- [ ] Shortcuts only fire when Yggdrasil window is focused — no OS-level registration
+- [ ] Shortcuts do not fire when user is typing inside a terminal or editor panel
+- [ ] AppConfig extended with `shortcuts: KeyboardShortcut[]` — persisted to disk
+- [ ] Default shortcuts seeded in loadConfig() if not present (V1 config migration)
+- [ ] `pnpm tsc --noEmit` zero errors, `cargo check` zero errors
+
+### Ordered Task List
+
+1. Create `src/types/shortcuts.ts` with full schema from ARCHITECTURE.md Section 6.5
+2. Extend AppConfig interface in `src/types/workspace.ts` to include `shortcuts` field
+3. Update `loadConfig()` in `src/shell/workspace.ts` to seed DEFAULT_SHORTCUTS if
+   shortcuts field is missing (migration for V1 configs)
+4. Update `saveConfig()` to persist shortcuts alongside workspaces
+5. Write `useKeyboardShortcuts` hook in `src/hooks/useKeyboardShortcuts.ts`:
+   - Reads shortcuts from AppContext
+   - Registers single `keydown` listener on `window` on mount
+   - Cleans up listener on unmount
+   - For each keydown: match against enabled shortcuts, dispatch correct action
+   - Guards: do not fire if `event.target` is inside a terminal panel or Monaco editor
+     (check for `.xterm-helper-textarea` or `.monaco-editor` ancestor)
+6. Add AppContext action UPDATE_SHORTCUTS and wire to WorkspaceContext SWITCH_WORKSPACE
+   for workspace-level focus actions
+7. Mount `useKeyboardShortcuts` in `src/App.tsx` at root level
+8. Test all default shortcuts manually:
+   - Ctrl+1/2 workspace switching with 2+ workspaces
+   - Alt+1/2/3 panel focus with 3-panel layout
+   - Ctrl+. drawer toggle
+   - Verify shortcuts do not fire while typing in terminal
+9. Commit: "M7 complete — keyboard shortcuts"
+
+### Notes
+
+Panel focus (Alt+1–4) in V2 means applying a visual focus ring to the panel header
+and scrolling the panel into view if needed. It does not steal keyboard focus away
+from the terminal or editor — it is a visual indicator only. Full keyboard navigation
+into panel content is a V3 consideration.
+
+The terminal focus guard checks for `.xterm-helper-textarea` — the hidden textarea
+xterm.js uses to capture keyboard input. If that element is the active element,
+shortcut keys must not fire.
+
+---
+
+### M7 — Plan Journal
+
+*Plans will be appended here by Claude Code during execution.*
+
+---
+
+## MILESTONE 8 — FLEXIBLE LAYOUT & PRESETS
+
+### Definition of Done
+
+- [ ] PanelSlot interface updated with `sizeWeight: number` and `row: 0 | 1`
+- [ ] WorkspaceLayout updated with `preset: LayoutPreset` and `rowWeight: number`
+- [ ] V1 config migration: loadConfig() backfills sizeWeight=1, row=0, preset='large-medium',
+      rowWeight=1 for any workspace missing these fields
+- [ ] LayoutGrid renders panels using flex layout driven by sizeWeight and row values
+- [ ] LayoutPresetPicker toolbar renders four preset icons, applying correct slot configs on click
+- [ ] DragHandle renders between adjacent panels (vertical) and between rows (horizontal)
+- [ ] Dragging vertical handle updates sizeWeight of adjacent panels in real time
+- [ ] Dragging horizontal handle updates rowWeight in real time
+- [ ] Drag handles are invisible at rest, visible on hover only
+- [ ] Native webview panels move off-screen during drag, restore on drag end
+  (same setPosition pattern as PanelPicker — see ERRORS.md)
+- [ ] PanelAddButton (+) renders when panel count < 4, opens PanelPicker on click
+- [ ] New panel added with sizeWeight=1, row=0, redistributes layout
+- [ ] Panel remove (×) button on panel header removes slot, redistributes sizeWeights equally
+- [ ] All layout changes persist to disk immediately
+- [ ] All four presets produce correct visual layouts matching ARCHITECTURE.md Section 10.1 diagrams
+- [ ] `pnpm tsc --noEmit` zero errors, `cargo check` zero errors
+
+### Ordered Task List
+
+**Schema & Migration**
+1. Update `src/types/workspace.ts`:
+   - Add `sizeWeight` and `row` to PanelSlot
+   - Add `LayoutPreset` type and update WorkspaceLayout with `preset` and `rowWeight`
+2. Update `loadConfig()` migration to backfill V1 configs with V2 defaults
+3. Define preset configurations as constants:
+   ```typescript
+   // src/workspace/LayoutPresetPicker.tsx
+   export const LAYOUT_PRESETS: Record<LayoutPreset, Omit<PanelSlot, 'id'|'type'|'settings'>[]>
+   ```
+   Each preset defines the sizeWeight and row for each slot position
+
+**Layout Grid**
+4. Rewrite `LayoutGrid.tsx` to use two-row flex structure:
+   - Outer container: flex column, height 100%
+   - Row 0: flex row, height driven by rowWeight
+   - Row 1: flex row, height = remaining space
+   - Panels within each row: flex items with flex: sizeWeight
+   - Row 1 only renders if any panel has row=1
+5. Add `DragHandle.tsx` component:
+   - Vertical variant: thin div between panels in same row, cursor: col-resize
+   - Horizontal variant: thin div between row 0 and row 1, cursor: row-resize
+   - Both invisible at rest (opacity: 0), visible on hover (opacity: 1, CSS transition)
+6. Wire drag logic in `useLayoutDrag.ts` hook:
+   - onMouseDown: begin drag, record start position, signal adjacent panels to move webviews off-screen
+   - onMouseMove: calculate delta, update sizeWeight or rowWeight in WorkspaceContext
+   - onMouseUp: end drag, signal panels to restore webview positions, persist to disk
+7. Add webview off-screen signaling to PanelContainer:
+   - Expose `movOffScreen()` and `restorePosition()` via a ref or context
+   - DragHandle calls these on adjacent panels during drag
+
+**Presets & Add/Remove**
+8. Write `LayoutPresetPicker.tsx`:
+   - Four icon buttons representing each preset layout
+   - Active preset highlighted with accent color
+   - On click: dispatches SET_LAYOUT_PRESET action, resets sizeWeight and row per preset definition
+9. Add SET_LAYOUT_PRESET, ADD_PANEL, REMOVE_PANEL actions to WorkspaceContext reducer
+10. Write `PanelAddButton.tsx`:
+    - Renders only when layout.panels.length < 4
+    - Opens PanelPicker on click
+    - On panel type selected: dispatches ADD_PANEL with default settings
+11. Add × remove button to PanelContainer header:
+    - Visible on header hover only
+    - On click: dispatches REMOVE_PANEL for this slot
+    - Redistributes sizeWeight equally across remaining panels
+
+**Integration & Testing**
+12. Add LayoutPresetPicker to StatusBar or top of LayoutGrid (decide placement, log in DECISIONS.md)
+13. Test all four presets apply correctly and resize freely after applying
+14. Test add panel: 1→2→3→4 panels, verify layout redistributes correctly each time
+15. Test remove panel: 4→3→2→1 panels, verify no layout breakage
+16. Test drag resize with a webview panel present — verify no input capture during drag
+17. Test V1 config migration: open app with old config, verify panels display correctly
+18. Commit: "M8 complete — flexible layout and presets"
+
+### Notes
+
+The `large-two-stacked` preset is the most complex — panel A spans both rows
+(column 0, full height) while B and C occupy column 1 row 0 and row 1 respectively.
+Implement this last after the simpler presets are working. In the flex layout model,
+this requires panel A to have `align-self: stretch` and the row container to allow
+cross-axis stretching. Consider a CSS grid approach for LayoutGrid if flex proves
+awkward for this preset specifically — log the decision in DECISIONS.md.
+
+---
+
+### M8 — Plan Journal
+
+*Plans will be appended here by Claude Code during execution.*
+
+---
+
+## MILESTONE 9 — PLANNING DRAWER CONTENT
+
+### Definition of Done
+
+- [ ] PlanningDrawerContent interface added to workspace.ts schema
+- [ ] Workspace interface extended with `planning: PlanningDrawerContent`
+- [ ] loadConfig() migration backfills default planning state for V1 workspaces
+- [ ] PlanningDrawer renders two collapsible sections: Scratchpad and Milestone Reader
+- [ ] Scratchpad section: textarea persists content to workspace.planning.scratchpad on change
+- [ ] Scratchpad content switches correctly when active workspace changes
+- [ ] Scratchpad section collapses/expands, state persists in planning.scratchpadVisible
+- [ ] Milestone Reader: reads IMPLEMENTATION.md from workspace projectRoot on mount
+- [ ] Milestone Reader: detects and displays first non-[COMPLETED] milestone
+- [ ] Milestone Reader: renders definition of done checklist with correct check states
+- [ ] Milestone Reader: renders plan journal entries for active milestone with status tags
+- [ ] Milestone Reader: updates in real time when IMPLEMENTATION.md changes on disk
+- [ ] Milestone Reader: shows friendly empty state if no IMPLEMENTATION.md in projectRoot
+- [ ] Milestone Reader: shows friendly empty state if all milestones are [COMPLETED]
+- [ ] Milestone Reader section collapses/expands, state persists in planning.milestoneVisible
+- [ ] Drawer open/close state persists in planning.drawerOpen per workspace
+- [ ] All planning state persists to disk immediately via WorkspaceContext useEffect
+- [ ] `pnpm tsc --noEmit` zero errors
+
+### Ordered Task List
+
+**Schema & Migration**
+1. Add PlanningDrawerContent interface to `src/types/workspace.ts` per ARCHITECTURE.md Section 6.3
+2. Add `planning: PlanningDrawerContent` to Workspace interface
+3. Update loadConfig() to backfill default planning state for workspaces missing it:
+   ```typescript
+   planning: {
+     scratchpad: '',
+     scratchpadVisible: true,
+     milestoneVisible: true,
+     drawerOpen: false
+   }
+   ```
+4. Add UPDATE_PLANNING action to WorkspaceContext reducer
+
+**Scratchpad**
+5. Write `Scratchpad.tsx` in `src/workspace/PlanningDrawer/`:
+   - Textarea that fills available space
+   - onChange: debounced 500ms dispatch to UPDATE_PLANNING
+   - Value driven by active workspace planning.scratchpad from context
+   - Placeholder text: "Notes for this workspace..."
+   - Correct theme colors from CSS variables — no hardcoded values
+6. Add collapse toggle to Scratchpad section header
+   - Toggle dispatches UPDATE_PLANNING with scratchpadVisible flipped
+
+**Milestone Reader**
+7. Write `useMilestoneReader` hook in `src/hooks/useMilestoneReader.ts`:
+   - Takes projectRoot as input
+   - On mount: reads `{projectRoot}/IMPLEMENTATION.md` via readFile shell command
+   - Sets up Tauri file watcher on that path
+   - On file change: re-reads and re-parses
+   - Returns: { activeMilestone, checklistItems, journalEntries, error }
+   - On unmount: cleans up file watcher
+8. Write IMPLEMENTATION.md parser (pure TypeScript, no dependencies):
+   - Finds first milestone section where status snapshot shows non-[COMPLETED]
+   - Extracts definition of done checklist items with checked/unchecked state
+   - Extracts plan journal entries for that milestone
+   - Returns structured data — does not return raw markdown
+9. Write `MilestoneReader.tsx` in `src/workspace/PlanningDrawer/`:
+   - Uses useMilestoneReader hook
+   - Renders milestone name and status tag
+   - Renders checklist with visual check/uncheck indicators (read-only display)
+   - Renders plan journal entries with status tag colored indicators
+   - Empty state: "No IMPLEMENTATION.md found in project root"
+   - All milestones done state: "All milestones complete 🎉"
+10. Add collapse toggle to Milestone Reader section header
+
+**Drawer Assembly**
+11. Rewrite `PlanningDrawer.tsx` to render full V2 content:
+    - Reads planning state from active workspace in WorkspaceContext
+    - Renders Scratchpad and MilestoneReader sections
+    - Outer drawer open/close animation (CSS transition, slide in from right)
+    - Toggle button on left edge of drawer (always visible when drawer closed)
+    - Toggle dispatches UPDATE_PLANNING with drawerOpen flipped
+12. Add new Tauri commands to Rust backend if needed for file watching
+    (check if Tauri watch API is available in v2.x before adding custom implementation)
+13. Wire planning.drawerOpen to CSS variable for drawer width so LayoutGrid
+    adjusts panel grid width when drawer opens — no layout jank
+14. Test scratchpad: type notes, switch workspaces, verify notes switch correctly
+15. Test milestone reader with Ratatoskr's real IMPLEMENTATION.md
+16. Test file watcher: have Claude Code update IMPLEMENTATION.md, verify drawer updates
+17. Commit: "M9 complete — planning drawer content"
+
+### Notes
+
+The IMPLEMENTATION.md parser must be lenient. If the file structure deviates from
+the schema (extra sections, different heading levels), it should fail gracefully to
+an empty state rather than crash. Never throw from the parser — always return a
+result object with an error field.
+
+The file watcher adds a Tauri dependency — check DECISIONS.md and ERRORS.md before
+implementing to see if file watching was considered or attempted anywhere in V1.
+If the Tauri watch plugin requires additional Cargo.toml additions, log in DECISIONS.md.
+
+---
+
+### M9 — Plan Journal
+
+*Plans will be appended here by Claude Code during execution.*
+
+---
+
+## MILESTONE 10 — HTTP ENDPOINT WIDGET
+
+### Definition of Done
+
+- [ ] HttpEndpointWidgetSettings interface in widgets.ts (url, expectedStatus, label)
+- [ ] HttpEndpoint added to WidgetType enum
+- [ ] `http_poll_endpoint` Rust command in new `src-tauri/src/commands/http.rs`
+- [ ] TypeScript wrapper in new `src/shell/http.ts`
+- [ ] HttpEndpointWidget component in `src/widgets/http-endpoint/HttpEndpointWidget.tsx`
+- [ ] Widget polls configured URL at pollInterval, compares response status to expectedStatus
+- [ ] Status ok if response matches expectedStatus, warn if unexpected status, error if unreachable
+- [ ] Widget registered in widget registry
+- [ ] Widget can be added to any workspace via workspace settings
+- [ ] HTTP polling runs Rust-side (avoids CORS, handles non-web-accessible endpoints)
+- [ ] Timeout: 5 seconds max per poll request — never hangs indefinitely
+- [ ] `pnpm tsc --noEmit` zero errors, `cargo check` zero errors
+
+### Ordered Task List
+
+1. Add `HttpEndpoint = 'http-endpoint'` to WidgetType enum in `src/types/widgets.ts`
+2. Add HttpEndpointWidgetSettings interface to `src/types/widgets.ts`
+3. Write Rust command in new `src-tauri/src/commands/http.rs`:
+   - `http_poll_endpoint(url: String, timeout_ms: u64) -> Result<u16, String>`
+   - Returns HTTP status code on success, error string on network failure
+   - Uses `reqwest` crate with 5 second timeout
+   - Add `reqwest` to Cargo.toml with `default-features = false, features = ["blocking"]`
+4. Register command in `src-tauri/src/main.rs`
+5. Write TypeScript wrapper in new `src/shell/http.ts`:
+   - `pollEndpoint(url: string, expectedStatus: number): Promise<number>`
+6. Write `HttpEndpointWidget.tsx` in `src/widgets/http-endpoint/`:
+   - Polls via pollEndpoint on interval
+   - Compares result to expectedStatus — match = ok, mismatch = warn, error = error
+   - Displays label + status dot in WidgetChip format
+   - Handles timeout/network error gracefully as error state
+7. Register in `src/widgets/registry.ts`
+8. Add http-endpoint widget to widget picker UI (if one exists — check M5 implementation)
+9. Test with a real endpoint: VPS health check URL, local localhost service
+10. Test failure states: wrong URL, server down, unexpected status code
+11. Commit: "M10 complete — HTTP endpoint widget"
+
+### Notes
+
+`reqwest` adds a non-trivial dependency to the Rust backend. Evaluate whether
+the existing Docker CLI polling pattern (std::process::Command) could be adapted
+instead — e.g. using curl. If curl is available on the user's Windows machine,
+`curl -o /dev/null -s -w "%{http_code}" {url}` returns just the status code.
+This avoids adding reqwest. Log the decision in DECISIONS.md either way.
+
+---
+
+### M10 — Plan Journal
+
+*Plans will be appended here by Claude Code during execution.*
+
+---
+
 ## APPENDIX A — V2 CONSIDERATIONS
 
 Items discussed but explicitly deferred from V1. These are not forgotten —
 they are sequenced. Log here as they are identified so V2 planning has a
 starting point.
 
+**Delivered in V2 (M7–M10):**
+Panel resizing, flexible layout (1–4 panels, 2-row max), four layout presets,
+keyboard shortcuts (app-level), planning drawer content (scratchpad + milestone reader),
+HTTP endpoint widget.
+
+**Remaining — V3+ Considerations:**
+
 | Feature | Notes | Discussed |
 |---|---|---|
-| Panel resizing | Drag handles between panels, size weights in layout schema | 2026-02-24 |
-| Dynamic panel count | Add/remove panels at runtime, not fixed at 3 | 2026-02-24 |
-| Planning Drawer content | Antigravity-inspired notes/context surface, IMPLEMENTATION.md integration | 2026-02-24 |
+| True arbitrary grid | Rows × columns beyond 2-row max | 2026-02-24 |
 | Plugin/extension system | Data-driven panel registry already supports this | 2026-02-24 |
-| Claude API integration | Per-token cost — Desktop integration preferred for V1 | 2026-02-24 |
+| Claude API integration | Add mode: 'api' to ClaudeSettings — schema ready | 2026-02-24 |
 | Cloud sync | Config sync across machines | 2026-02-24 |
-| Git operations | Beyond read-only: commit, push, branch switching from within app | 2026-02-24 |
-| Additional widget types | Test runner, build status, custom HTTP endpoint | 2026-02-24 |
-| Keyboard shortcuts | Global hotkeys for workspace switching, panel focus | 2026-02-24 |
-| Window layout modes | 2-panel, 4-panel grid options beyond fixed 3-column | 2026-02-24 |
+| Git operations | Commit, push, branch switching from within app | 2026-02-24 |
+| Additional widget types | Test runner, build status | 2026-02-24 |
+| Token usage widget | No public API from Claude/Gemini/others — deferred indefinitely | 2026-02-25 |
+| Full keyboard navigation | Focus into panel content, not just visual focus ring | 2026-02-25 |
+| Shortcut customization UI | Settings screen to remap shortcuts | 2026-02-25 |
 
 ---
 
@@ -880,6 +1209,41 @@ Tauri commands for git and filesystem are written in M4 — M5 reuses them.
 
 **M6 last** — Polish on unstable foundation is wasted effort. Polish only after
 all features are working.
+
+---
+
+---
+
+## M7 — KEYBOARD SHORTCUTS
+
+### Status: `[COMPLETED]`
+
+### Definition of Done
+- [x] `src/types/shortcuts.ts` created with ShortcutAction, KeyboardShortcut, DEFAULT_SHORTCUTS
+- [x] `AppConfig` extended with `shortcuts: KeyboardShortcut[]`
+- [x] `Workspace` extended with `planning: PlanningDrawerContent`
+- [x] Config migration backfills shortcuts and planning on load
+- [x] `WorkspaceContext` exposes shortcuts from AppConfig
+- [x] `AppContext` has `focusedPanelIndex` and `SET_PANEL_FOCUS` action
+- [x] `useKeyboardShortcuts` hook handles keydown events with terminal/editor guards
+- [x] Panel focus visual indicator shows accent border for 2s on Alt+N
+- [x] Hook mounted in App.tsx
+- [x] `pnpm tsc --noEmit` zero errors
+
+### Plan Journal
+
+#### Entry M7-001 — Keyboard Shortcuts Implementation
+**Date:** 2026-02-25
+**Status:** `[COMPLETED]`
+
+**Plan:**
+1. Create `src/types/shortcuts.ts` with full schema from ARCHITECTURE.md Section 6.5
+2. Extend `src/types/workspace.ts` — add shortcuts to AppConfig, PlanningDrawerContent + planning to Workspace
+3. Config migration in `src/shell/workspace.ts` — backfill shortcuts and planning fields
+4. Wire shortcuts through WorkspaceContext (shortcuts in state) and AppContext (focusedPanelIndex + SET_PANEL_FOCUS)
+5. Write `useKeyboardShortcuts` hook in `src/hooks/useKeyboardShortcuts.ts`
+6. Panel focus visual indicator in LayoutGrid.tsx and PanelContainer.tsx
+7. Mount hook in App.tsx, verify with `pnpm tsc --noEmit`
 
 ---
 

@@ -1,9 +1,11 @@
 import { useWorkspaceContext } from '../store/WorkspaceContext';
+import { useAppContext } from '../store/AppContext';
 import PanelContainer from '../panels/PanelContainer';
 import type { PanelSettings } from '../types/panels';
 
 function LayoutGrid() {
   const { activeWorkspace, dispatch } = useWorkspaceContext();
+  const { state: appState } = useAppContext();
 
   if (!activeWorkspace) {
     return (
@@ -34,6 +36,7 @@ function LayoutGrid() {
         <PanelContainer
           key={`${activeWorkspace.id}-${slot.id}`}
           panelType={slot.type}
+          isFocused={appState.focusedPanelIndex === index}
           panelProps={{
             panelId: `${activeWorkspace.id}-${slot.id}`,
             settings: slot.settings,

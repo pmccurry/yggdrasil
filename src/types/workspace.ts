@@ -1,6 +1,7 @@
 import type { PanelSettings } from './panels';
 import { PanelType } from './panels';
 import type { WidgetConfig } from './widgets';
+import type { KeyboardShortcut } from './shortcuts';
 
 export interface PanelSlot {
   id:       string;
@@ -18,6 +19,13 @@ export interface WorkspaceActivationHook {
   claudeDesktopProjectPath?: string;
 }
 
+export interface PlanningDrawerContent {
+  scratchpad:        string;
+  scratchpadVisible: boolean;
+  milestoneVisible:  boolean;
+  drawerOpen:        boolean;
+}
+
 export interface Workspace {
   id:          string;
   name:        string;
@@ -27,6 +35,7 @@ export interface Workspace {
   layout:      WorkspaceLayout;
   widgets:     WidgetConfig[];
   onActivate:  WorkspaceActivationHook;
+  planning:    PlanningDrawerContent;
   createdAt:   string;
   updatedAt:   string;
 }
@@ -35,4 +44,5 @@ export interface AppConfig {
   version:           string;
   activeWorkspaceId: string;
   workspaces:        Workspace[];
+  shortcuts:         KeyboardShortcut[];
 }

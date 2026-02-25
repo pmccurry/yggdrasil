@@ -634,6 +634,171 @@ Workspaces without matching containers show "No containers" (idle) instead of er
 
 ---
 
+## D019 — Keyboard shortcuts: app-level only, no OS global registration
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Keyboard shortcuts are app-level only. They fire when the Yggdrasil window is
+focused via a single window keydown listener. No OS-level global shortcut
+registration via Tauri's global shortcut API.
+
+**Alternatives Considered:**
+- Tauri global shortcuts — fire even when Yggdrasil is not the focused window.
+  Rejected because OS-level permission handling adds complication, risks conflicts
+  with other applications using the same key combinations, and is unnecessary for
+  a tool the developer is actively working in.
+
+**Rationale:**
+Yggdrasil is a focused work environment. If you're using a shortcut to switch
+workspaces, you're already in Yggdrasil. App-level shortcuts are simpler,
+zero-permission, conflict-free, and sufficient for the use case.
+
+**Implications:**
+useKeyboardShortcuts hook mounted at App root. Single window keydown listener.
+Shortcuts do not fire when terminal or Monaco editor has focus.
+
+---
+
+## D020 — Layout system: two-row max, not true arbitrary grid
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+V2 layout supports a maximum of two rows. A true arbitrary grid (N rows × M columns)
+is deferred to V3.
+
+**Alternatives Considered:**
+- True arbitrary grid — maximum flexibility but significantly more complex layout
+  engine, more complex data schema, more complex drag handle interactions. Rejected
+  for V2 because the four target presets all fit within two rows and the incremental
+  complexity is not justified by V2 use cases.
+
+**Rationale:**
+All four requested presets (2-equal, large-medium, large-two-stacked, 4-equal)
+work within a two-row maximum. Building a full grid engine before validating
+whether two rows covers real needs violates the simplicity principle. V2 ships,
+gets used, and the gap (if any) becomes clear from actual use rather than speculation.
+
+**Implications:**
+PanelSlot.row is typed as 0 | 1. WorkspaceLayout has rowWeight for row 0 vs row 1
+height ratio. Maximum 4 panels total. True grid is V3 consideration in Appendix A.
+
+---
+
+## D021 — Layout rows are invisible implementation detail
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Rows are never surfaced in the Yggdrasil UI. The user sees a canvas with panels
+and resize handles. No row labels, row boundaries, or row management UI exists.
+
+**Alternatives Considered:**
+- Explicit row UI — row headers, add-row buttons, row labels. Rejected because it
+  exposes implementation complexity to the user unnecessarily and clutters the
+  canvas aesthetic.
+
+**Rationale:**
+The user's mental model is "I have panels arranged on a canvas." The row constraint
+is an implementation detail of how we manage layout in a two-row system. Exposing it
+breaks the canvas mental model and adds UI complexity with no user benefit.
+
+**Implications:**
+DragHandle between rows is a plain resize handle — same appearance as vertical handles.
+Preset picker is the primary way to change layout structure. Row assignment is
+determined by preset definitions, not by user-facing row controls.
+
+---
+
+## D022 — Planning Drawer: scratchpad + milestone reader only, no task list
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Planning Drawer V2 contains exactly two sections: per-workspace scratchpad and
+live IMPLEMENTATION.md milestone reader. A separate quick task list was considered
+and rejected.
+
+**Alternatives Considered:**
+- Quick task list (separate from milestone reader) — rejected because it duplicates
+  the milestone reader's function. The IMPLEMENTATION.md definition of done IS the
+  task list. Two task lists that could diverge creates confusion rather than clarity.
+- Terminal command pinning (separate from scratchpad) — rejected because pinning
+  commands to reference them is functionally identical to writing them in the scratchpad.
+  No separate mechanism needed.
+
+**Rationale:**
+The scratchpad handles freeform notes and command references. The milestone reader
+handles project task tracking via the IMPLEMENTATION.md system already maintained
+by Claude Code. These two functions are distinct and non-overlapping. Everything
+else considered was either redundant with one of these or better served by existing
+tools.
+
+**Implications:**
+PlanningDrawerContent has scratchpad, scratchpadVisible, milestoneVisible, drawerOpen.
+No additional content sections in V2. Each section is independently collapsible.
+
+---
+
+## D023 — HTTP endpoint widget: Rust-side polling to avoid CORS
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+HTTP endpoint polling for the status widget runs Rust-side via a Tauri command,
+not from the JavaScript frontend.
+
+**Alternatives Considered:**
+- Frontend fetch() — blocked by CORS for most non-browser-accessible endpoints
+  (VPS health checks, internal services, localhost services on different ports).
+  Rejected because CORS would make the widget useless for the primary use case.
+
+**Rationale:**
+VPS health endpoints and internal service endpoints do not serve CORS headers
+because they are not intended to be called from browsers. A Rust-side HTTP request
+has no CORS restriction. The Tauri command returns only the HTTP status code —
+no response body is needed or returned.
+
+**Implications:**
+New `src-tauri/src/commands/http.rs` and `src/shell/http.ts`. Either reqwest crate
+or curl CLI — to be decided during M10 implementation and logged as a sub-decision.
+5 second timeout enforced Rust-side.
+
+---
+
+## D024 — Token usage widget: deferred indefinitely — no public API available
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+A token usage widget showing Claude/Gemini/Codex session usage is not implemented.
+Deferred indefinitely pending public API availability from providers.
+
+**Alternatives Considered:**
+- Screen scraping the Claude.ai usage UI — fragile, breaks on any UI change,
+  violates terms of service spirit. Rejected.
+- OpenAI usage API — returns billing period totals, not session-level usage.
+  Not the granular per-session percentage the user wants. Rejected as insufficient.
+
+**Rationale:**
+Anthropic does not expose a public API for Claude Max session token usage.
+The percentage indicator visible in the Claude UI is not programmatically accessible.
+Building a widget that cannot reliably get its data is worse than not building it.
+If providers add public usage APIs in the future, this decision can be revisited.
+
+**Implications:**
+Logged in Appendix A as deferred indefinitely. The HTTP endpoint widget covers
+the VPS health check use case that was discussed alongside token usage.
+
+---
+
 *End of DECISIONS.md*
 *Version 1.0 — Created 2026-02-24*
 *Entries are never deleted. Superseded entries are marked [SUPERSEDED].*

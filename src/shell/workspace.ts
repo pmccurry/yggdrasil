@@ -31,12 +31,13 @@ function defaultWidgets(projectRoot: string): WidgetConfig[] {
       settings: { repoPath: projectRoot },
     });
   }
+  const dirName = projectRoot ? projectRoot.replace(/\\/g, '/').split('/').filter(Boolean).pop() || '' : '';
   widgets.push({
     id: 'widget-docker',
     type: WidgetType.Docker,
     label: 'Docker',
     pollInterval: 10000,
-    settings: { containerName: '' },
+    settings: { containerName: '', projectDir: dirName },
   });
   return widgets;
 }
@@ -108,6 +109,7 @@ export async function loadConfig(): Promise<AppConfig> {
         ws.widgets = defaultWidgets(ws.projectRoot);
         migrated = true;
       } else {
+        const dirName = ws.projectRoot ? ws.projectRoot.replace(/\\/g, '/').split('/').filter(Boolean).pop() || '' : '';
         // Add Docker widget if missing
         if (!ws.widgets.some(w => w.type === WidgetType.Docker)) {
           ws.widgets.push({
@@ -115,9 +117,16 @@ export async function loadConfig(): Promise<AppConfig> {
             type: WidgetType.Docker,
             label: 'Docker',
             pollInterval: 10000,
-            settings: { containerName: '' },
+            settings: { containerName: '', projectDir: dirName },
           });
           migrated = true;
+        }
+        // Migrate existing Docker widget: add projectDir if missing
+        for (const w of ws.widgets) {
+          if (w.type === WidgetType.Docker && !w.settings.projectDir) {
+            w.settings.projectDir = dirName;
+            migrated = true;
+          }
         }
       }
     }

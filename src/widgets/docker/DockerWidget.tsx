@@ -1,12 +1,21 @@
 import { dockerPs } from '../../shell/docker';
 import type { WidgetConfig, WidgetState } from '../../types/widgets';
 
-export async function pollDocker(_config: WidgetConfig): Promise<WidgetState> {
+export async function pollDocker(config: WidgetConfig): Promise<WidgetState> {
+  const projectDir = (config.settings.projectDir as string) || '';
+
   try {
-    const containers = await dockerPs();
+    const all = await dockerPs();
+
+    // Filter to containers belonging to this workspace's project
+    const containers = projectDir
+      ? all.filter(c => c.name.toLowerCase().startsWith(projectDir.toLowerCase() + '-'))
+      : all;
+
     if (containers.length === 0) {
       return { status: 'idle', value: 'No containers' };
     }
+
     const running = containers.filter(c => c.state === 'running');
     const stopped = containers.filter(c => c.state !== 'running');
     const tooltip = containers

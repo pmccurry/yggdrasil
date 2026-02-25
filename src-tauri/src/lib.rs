@@ -18,6 +18,7 @@ pub fn run() {
             commands::docker::docker_ps,
             commands::claude::detect_claude_desktop,
             commands::claude::launch_claude_desktop,
+            commands::http::http_poll_endpoint,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

@@ -935,6 +935,35 @@ state is the correct model.
 
 ---
 
+## D029 — HTTP endpoint widget: curl over reqwest
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Use `curl.exe` via `std::process::Command` instead of adding the `reqwest` crate
+for the HTTP endpoint widget's Rust-side polling.
+
+**Alternatives Considered:**
+- `reqwest` crate — full-featured Rust HTTP client. Rejected because it pulls in
+  `hyper`, `tokio`, `http`, `h2`, and other heavy dependencies. Binary size would
+  increase significantly for a single status-code-only HTTP GET.
+
+**Rationale:**
+Windows 10+ ships with `curl.exe` in System32. The command
+`curl -o /dev/null -s -w "%{http_code}" --max-time 5 {url}` returns just the HTTP
+status code. This follows the established CLI pattern already used by the Docker
+widget (`docker` via `std::process::Command`). No new Cargo dependencies, stable
+binary size, proven pattern.
+
+**Implications:**
+- `src-tauri/src/commands/http.rs` uses `Command::new("curl")` with `creation_flags(0x08000000)` on Windows
+- curl returns `000` for unreachable hosts — mapped to `Err("http_unreachable: ...")`
+- If curl is not in PATH, returns `Err("curl_not_found: ...")` — widget shows error state
+- 5-second timeout enforced via `--max-time` argument
+
+---
+
 *End of DECISIONS.md*
 *Version 1.0 — Created 2026-02-24*
 *Entries are never deleted. Superseded entries are marked [SUPERSEDED].*

@@ -3,3 +3,4 @@ pub mod filesystem;
 pub mod git;
 pub mod docker;
 pub mod claude;
+pub mod http;

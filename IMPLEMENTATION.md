@@ -55,7 +55,7 @@ Every plan journal entry uses one of these status tags:
 | M7 — Keyboard Shortcuts | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
 | M8 — Flexible Layout & Presets | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
 | M9 — Planning Drawer Content | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
-| M10 — HTTP Endpoint Widget | `[PLANNED]` | — | — |
+| M10 — HTTP Endpoint Widget | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
 
 ---
 
@@ -1203,7 +1203,22 @@ This avoids adding reqwest. Log the decision in DECISIONS.md either way.
 
 ### M10 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### Entry M10-001: HTTP Endpoint Widget Implementation
+**Date:** 2026-02-25
+**Status:** `[COMPLETED]`
+
+**Plan:**
+1. Edit `src/types/widgets.ts` — add `HttpEndpoint = 'http-endpoint'` to `WidgetType` enum, add `HttpEndpointWidgetSettings` interface
+2. Create `src-tauri/src/commands/http.rs` — curl-based `http_poll_endpoint` command (follows `docker.rs` pattern, D029)
+3. Edit `src-tauri/src/commands/mod.rs` — add `pub mod http;`
+4. Edit `src-tauri/src/lib.rs` — register `http_poll_endpoint` in `generate_handler![]`
+5. Create `src/shell/http.ts` — TypeScript invoke wrapper
+6. Create `src/widgets/http-endpoint/HttpEndpointWidget.tsx` — poll function
+7. Edit `src/widgets/registry.ts` — register `pollHttpEndpoint` in `WIDGET_REGISTRY`
+8. Log D029 (curl over reqwest) to DECISIONS.md
+9. Verify: `cargo check`, `pnpm tsc --noEmit`, `pnpm build` — zero errors
+
+**Result:** All 9 steps completed. Zero errors across all verification targets.
 
 ---
 

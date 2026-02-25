@@ -1,9 +1,10 @@
 export type WidgetStatus = 'ok' | 'warn' | 'error' | 'idle' | 'loading';
 
 export enum WidgetType {
-  Docker  = 'docker',
-  Git     = 'git',
-  Generic = 'generic',
+  Docker       = 'docker',
+  Git          = 'git',
+  HttpEndpoint = 'http-endpoint',
+  Generic      = 'generic',
 }
 
 export interface WidgetConfig {
@@ -24,6 +25,12 @@ export interface DockerWidgetSettings extends WidgetSettings {
 
 export interface GitWidgetSettings extends WidgetSettings {
   repoPath: string;
+}
+
+export interface HttpEndpointWidgetSettings extends WidgetSettings {
+  url:            string;
+  expectedStatus: number;
+  label:          string;
 }
 
 export interface WidgetState {

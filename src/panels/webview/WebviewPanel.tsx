@@ -47,15 +47,32 @@ function WebviewPanel({ panelId, settings, onSettingsChange }: PanelProps) {
       }
     };
 
+    // Global modals (settings, create workspace) — move ALL webviews off-screen
+    const handleModalOpen = () => {
+      if (webviewRef.current) {
+        webviewRef.current.setPosition(new LogicalPosition(-10000, -10000)).catch(() => {});
+      }
+    };
+    const handleModalClose = () => {
+      if (webviewRef.current && containerRef.current) {
+        const r = containerRef.current.getBoundingClientRect();
+        webviewRef.current.setPosition(new LogicalPosition(r.left, r.top)).catch(() => {});
+      }
+    };
+
     window.addEventListener('yggdrasil:picker-open', handlePickerOpen);
     window.addEventListener('yggdrasil:picker-close', handlePickerClose);
     window.addEventListener('yggdrasil:drag-start', handleDragStart);
     window.addEventListener('yggdrasil:drag-end', handleDragEnd);
+    window.addEventListener('yggdrasil:modal-open', handleModalOpen);
+    window.addEventListener('yggdrasil:modal-close', handleModalClose);
     return () => {
       window.removeEventListener('yggdrasil:picker-open', handlePickerOpen);
       window.removeEventListener('yggdrasil:picker-close', handlePickerClose);
       window.removeEventListener('yggdrasil:drag-start', handleDragStart);
       window.removeEventListener('yggdrasil:drag-end', handleDragEnd);
+      window.removeEventListener('yggdrasil:modal-open', handleModalOpen);
+      window.removeEventListener('yggdrasil:modal-close', handleModalClose);
     };
   }, [panelId]);
 

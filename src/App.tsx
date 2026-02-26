@@ -5,10 +5,11 @@ import Sidebar from './workspace/Sidebar';
 import StatusBar from './workspace/StatusBar';
 import LayoutGrid from './workspace/LayoutGrid';
 import PlanningDrawer from './workspace/PlanningDrawer';
+import SettingsModal from './workspace/Settings/SettingsModal';
 
 function AppShell() {
   const { state: wsState, dispatch: wsDispatch, activeWorkspace } = useWorkspaceContext();
-  const { dispatch: appDispatch } = useAppContext();
+  const { state: appState, dispatch: appDispatch } = useAppContext();
 
   useKeyboardShortcuts({
     shortcuts: wsState.shortcuts,
@@ -42,6 +43,10 @@ function AppShell() {
         </div>
         <PlanningDrawer />
       </div>
+
+      {appState.settingsOpen && (
+        <SettingsModal onClose={() => appDispatch({ type: 'CLOSE_SETTINGS' })} />
+      )}
     </div>
   );
 }

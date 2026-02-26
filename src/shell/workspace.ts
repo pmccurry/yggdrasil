@@ -3,7 +3,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { PanelType } from '../types/panels';
 import { WidgetType } from '../types/widgets';
 import type { WidgetConfig } from '../types/widgets';
-import type { AppConfig, Workspace, WorkspaceActivationHook, PlanningDrawerContent, PanelSlot } from '../types/workspace';
+import type { AppConfig, Workspace, WorkspaceActivationHook, PlanningDrawerContent, PanelSlot, AppearanceSettings } from '../types/workspace';
 import { DEFAULT_SHORTCUTS } from '../types/shortcuts';
 
 const STORE_FILE = 'config.json';
@@ -82,6 +82,7 @@ export function createDefaultConfig(): AppConfig {
     activeWorkspaceId: id,
     workspaces: [defaultWorkspace],
     shortcuts: DEFAULT_SHORTCUTS,
+    appearance: { terminalFontSize: 14, editorFontSize: 14 },
   };
 }
 
@@ -124,6 +125,18 @@ export async function loadConfig(): Promise<AppConfig> {
     // Migrate: add shortcuts to AppConfig if missing
     if (!config.shortcuts) {
       config.shortcuts = DEFAULT_SHORTCUTS;
+      migrated = true;
+    }
+
+    // Migrate: add appearance to AppConfig if missing
+    if (!config.appearance) {
+      (config as { appearance: AppearanceSettings }).appearance = { terminalFontSize: 14, editorFontSize: 14 };
+      migrated = true;
+    }
+
+    // Migrate: add settings.open shortcut if missing
+    if (!config.shortcuts.some(s => s.action === 'settings.open')) {
+      config.shortcuts.push({ action: 'settings.open', keys: 'ctrl+,', enabled: true });
       migrated = true;
     }
 

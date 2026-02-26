@@ -12,7 +12,8 @@ export type ShortcutAction =
   | 'panel.focus.2'
   | 'panel.focus.3'
   | 'drawer.toggle'
-  | 'layout.preset.cycle';
+  | 'layout.preset.cycle'
+  | 'settings.open';
 
 export interface KeyboardShortcut {
   action:  ShortcutAction;
@@ -32,4 +33,5 @@ export const DEFAULT_SHORTCUTS: KeyboardShortcut[] = [
   { action: 'panel.focus.3',      keys: 'alt+4',  enabled: true },
   { action: 'drawer.toggle',      keys: 'ctrl+.',  enabled: true },
   { action: 'layout.preset.cycle',keys: 'ctrl+shift+l', enabled: true },
+  { action: 'settings.open',     keys: 'ctrl+,',       enabled: true },
 ];

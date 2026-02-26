@@ -56,6 +56,13 @@ Every plan journal entry uses one of these status tags:
 | M8 — Flexible Layout & Presets | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
 | M9 — Planning Drawer Content | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
 | M10 — HTTP Endpoint Widget | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
+| **— V3 —** | | | |
+| M11 — Settings Modal | `[IN PROGRESS]` | 2026-02-26 | — |
+| M12 — First-Run Experience | `[PLANNED]` | — | — |
+| M13 — Git Panel | `[PLANNED]` | — | — |
+| M14 — AI Provider System | `[PLANNED]` | — | — |
+| M15 — Tauri Updater | `[PLANNED]` | — | — |
+| M16 — Distribution Setup | `[PLANNED]` | — | — |
 
 ---
 
@@ -1222,30 +1229,468 @@ This avoids adding reqwest. Log the decision in DECISIONS.md either way.
 
 ---
 
-## APPENDIX A — V3+ CONSIDERATIONS
+## MILESTONE 11 — SETTINGS MODAL
 
-Items discussed but explicitly deferred from V1/V2. These are not forgotten —
-they are sequenced. Log here as they are identified so V3 planning has a
+### Definition of Done
+
+- [ ] Settings modal opens via gear icon in sidebar bottom and Ctrl+, shortcut
+- [ ] Modal has five tabs: Workspaces, Shortcuts, Providers, Appearance, About
+- [ ] Workspaces tab: rename workspace, change icon/accent color, edit projectRoot,
+      edit startupCommands (one per line textarea), delete workspace
+- [ ] Shortcuts tab: displays all shortcuts with current key binding, inline remapping
+      (click shortcut row, press new key combo, saves), reset to defaults button
+- [ ] Providers tab: lists configured AI providers with masked key indicator,
+      add provider flow, delete provider, enable/disable toggle per provider
+- [ ] Appearance tab: global accent color preset picker (V1 had per-workspace only),
+      font size adjustment for terminal and editor panels
+- [ ] About tab: app version, update check button, links to docs/repo, privacy statement
+- [ ] Modal closes on Escape, on backdrop click, or explicit close button
+- [ ] All settings changes persist to disk immediately via saveConfig()
+- [ ] No settings change disrupts the active workspace layout or panels
+- [ ] Error handling: every save operation shows success/failure feedback
+- [ ] `pnpm tsc --noEmit` zero errors
+
+### Ordered Task List
+
+1. Create `src/workspace/Settings/` directory with all tab component files
+2. Write `SettingsModal.tsx` — modal shell with tab navigation, backdrop, close behavior
+3. Add `OPEN_SETTINGS` and `CLOSE_SETTINGS` actions to AppContext
+4. Add `Ctrl+,` to DEFAULT_SHORTCUTS as `settings.open` action
+5. Add gear icon to Sidebar bottom, dispatches OPEN_SETTINGS on click
+6. Write `WorkspacesTab.tsx`:
+   - Lists all workspaces from WorkspaceContext
+   - Click workspace row to expand edit form
+   - Fields: name, icon (emoji picker), accent color (8 swatches), projectRoot (read-only + folder picker button), startupCommands (textarea)
+   - Save button per workspace — dispatches UPDATE_WORKSPACE
+   - Delete button with confirmation dialog
+7. Write `ShortcutsTab.tsx`:
+   - Maps over AppConfig.shortcuts
+   - Each row: action name, current key binding, click-to-remap interaction
+   - Remap: row enters "press new key" state, captures next keydown, validates no conflict, saves
+   - Reset all to defaults button
+8. Write `ProvidersTab.tsx` — see M14 for full provider UI spec
+   (stub this tab in M11, full implementation in M14)
+9. Write `AppearanceTab.tsx`:
+   - Terminal font size slider (12–18px, persists to AppConfig)
+   - Editor font size slider (12–18px)
+10. Write `AboutTab.tsx`:
+    - App version from Tauri (invoke get_app_version)
+    - Check for updates button (stub in M11, wired in M15)
+    - Privacy statement: "Yggdrasil collects no telemetry. Your data never leaves your machine."
+11. Mount SettingsModal in App.tsx — renders when AppContext settingsOpen is true
+12. Test all tabs render without errors
+13. Test modal open/close via gear icon, Ctrl+,, Escape, backdrop click
+14. Test workspace edit and save — verify config persists on app restart
+15. Commit: "M11 complete — settings modal"
+
+### Notes
+
+The Providers tab is stubbed in M11 with a placeholder message. Full implementation
+is M14. This allows M11 to ship without AI provider complexity while establishing
+the tab structure M14 will fill in.
+
+Every tab must handle its own empty states gracefully — zero workspaces, zero
+shortcuts, zero providers all need friendly empty states, not blank panels.
+
+---
+
+### M11 — Plan Journal
+
+#### Plan: Settings Modal Implementation — 2026-02-26
+**Status:** `[IN PROGRESS]`
+
+**Goal:** Add a settings modal with 5 tabs (Workspaces, Shortcuts, Providers stub, Appearance, About) accessible via sidebar gear icon and Ctrl+, shortcut.
+
+**Architecture:** Settings modal is a full-screen overlay mounted in App.tsx, controlled by AppContext state. Does not consume a panel slot (D030). Each tab is a self-contained component in `src/workspace/Settings/`. Workspace edits dispatch `UPDATE_WORKSPACE` to WorkspaceContext. Appearance settings added to AppConfig with loadConfig migration.
+
+**Files modified:** `shortcuts.ts`, `workspace.ts`, `AppContext.tsx`, `WorkspaceContext.tsx`, `workspace.ts` (shell), `useKeyboardShortcuts.ts`, `Sidebar.tsx`, `App.tsx`
+**Files created:** `SettingsModal.tsx`, `SettingsModal.module.css`, `WorkspacesTab.tsx`, `ShortcutsTab.tsx`, `ProvidersTab.tsx`, `AppearanceTab.tsx`, `AboutTab.tsx`, `shared-presets.ts`
+
+**Verification:** `pnpm tsc --noEmit` — 0 errors. `pnpm build` — 0 errors.
+
+---
+
+## MILESTONE 12 — FIRST-RUN EXPERIENCE
+
+### Definition of Done
+
+- [ ] App detects zero workspaces on launch and shows FirstRun screen instead of empty app
+- [ ] FirstRun screen explains Yggdrasil in 3–4 sentences — what it is, what a workspace is
+- [ ] FirstRun shows a "Create your first workspace" primary CTA button
+- [ ] Clicking CTA opens CreateWorkspaceModal (existing component)
+- [ ] After first workspace created, FirstRun screen dismisses and normal app renders
+- [ ] FirstRun never shows again once at least one workspace exists
+- [ ] FirstRun matches Yggdrasil visual language — dark theme, JetBrains Mono, accent color
+- [ ] `pnpm tsc --noEmit` zero errors
+
+### Ordered Task List
+
+1. Write `FirstRun.tsx` in `src/workspace/`:
+   - Full-screen overlay rendered in place of the normal panel grid
+   - Yggdrasil logo/name at top
+   - 3–4 sentence explanation:
+     "Yggdrasil is a project-aware workspace for Windows developers.
+      Each workspace is a named project with its own panel layout, terminal environment,
+      and status widgets. Switch between projects instantly — your context shifts with you.
+      Create your first workspace to get started."
+   - Large "Create Workspace" button — opens CreateWorkspaceModal
+   - Optional: small "What's a workspace?" expandable section with a one-line layout diagram
+2. Update `App.tsx` or `LayoutGrid.tsx` to check `workspaces.length === 0` on render
+   and show FirstRun instead of the panel grid
+3. Ensure FirstRun is dismissed reactively — when first workspace is added to context,
+   the normal app renders without requiring a manual dismiss
+4. Test: delete all workspaces → FirstRun appears. Create workspace → FirstRun dismisses.
+5. Test: normal launch with existing workspaces → FirstRun never shown
+6. Commit: "M12 complete — first-run experience"
+
+### Notes
+
+FirstRun is intentionally minimal. It is not a multi-step onboarding wizard.
+It is a single screen that orients the user and gets them to their first workspace
+creation as fast as possible. Resist the urge to add more steps.
+
+---
+
+### M12 — Plan Journal
+
+*Plans will be appended here by Claude Code during execution.*
+
+---
+
+## MILESTONE 13 — GIT PANEL
+
+### Definition of Done
+
+- [ ] `Git = 'git'` added to PanelType enum
+- [ ] GitPanelSettings interface: `{ repoPath: string }` defaulting to workspace projectRoot
+- [ ] GitPanel registered in panel registry, lazy-loaded
+- [ ] Git panel renders current branch name prominently at top
+- [ ] Git panel shows list of changed files with status (M=modified, U=untracked, D=deleted)
+- [ ] Each file has stage/unstage toggle button
+- [ ] Staged files section and unstaged files section clearly separated
+- [ ] Commit message textarea + Commit button (disabled when no staged files or empty message)
+- [ ] Push button — pushes current branch to origin
+- [ ] Pull button — pulls current branch from origin
+- [ ] All git operations show loading state while running
+- [ ] All git operations show success/error feedback after completion
+- [ ] Error states: not a git repo, no remote configured, auth failure — each has clear message
+- [ ] V3 Rust commands for git operations added: gitStage, gitUnstage, gitCommit, gitPush, gitPull, gitCurrentBranch
+- [ ] All commands use std::process::Command with git CLI (no git2 crate — follow CLI pattern from D017)
+- [ ] `pnpm tsc --noEmit` zero errors, `cargo check` zero errors
+
+### Ordered Task List
+
+**Rust Backend**
+1. Extend `src-tauri/src/commands/git.rs` with new commands:
+   - `git_stage(repo_path: String, files: Vec<String>) -> Result<(), String>`
+   - `git_unstage(repo_path: String, files: Vec<String>) -> Result<(), String>`
+   - `git_commit(repo_path: String, message: String) -> Result<(), String>`
+   - `git_push(repo_path: String) -> Result<String, String>` — returns output
+   - `git_pull(repo_path: String) -> Result<String, String>` — returns output
+   - `git_current_branch(repo_path: String) -> Result<String, String>`
+   All use `Command::new("git")` with `creation_flags(0x08000000)` on Windows
+2. Register all new commands in `src-tauri/src/lib.rs`
+
+**TypeScript Shell Wrappers**
+3. Extend `src/shell/git.ts` with wrappers for all new commands
+4. Add GitStatus type extensions if needed (staged vs unstaged file lists)
+
+**Panel Component**
+5. Create `src/panels/git/git.types.ts`:
+   - `StagedFile`, `UnstagedFile`, `GitPanelState` interfaces
+6. Create `src/panels/git/GitFileList.tsx`:
+   - Renders a list of files with status icon and stage/unstage button
+   - Accepts `files`, `staged: boolean`, `onToggle` props
+7. Create `src/panels/git/GitCommitForm.tsx`:
+   - Textarea for commit message
+   - Commit button (disabled when empty or no staged files)
+   - Character counter (good commit message guidance)
+8. Create `src/panels/git/GitPanel.tsx`:
+   - Uses useGitPanel hook or inline state for panel lifecycle
+   - Polls getGitStatus on mount and after each operation (no file watcher — polling)
+   - Renders: branch header, GitFileList (unstaged), GitFileList (staged), GitCommitForm, push/pull buttons
+   - Loading states during async operations
+   - Error states with clear messages
+9. Register GitPanel in `src/panels/registry.ts`
+10. Add 'git' to PanelType enum in `src/types/panels.ts`
+11. Add GitPanelSettings to `src/types/panels.ts`
+12. Test: stage file, unstage file, commit, push, pull — verify each works end to end
+13. Test error states: run in non-git directory, run push with no remote
+14. Log D030 (git CLI over git2 crate) to DECISIONS.md
+15. Commit: "M13 complete — git panel"
+
+### Notes
+
+Use git CLI via std::process::Command — same pattern as Docker (D017). The git2 Rust
+crate is more elegant but adds a significant compilation dependency and native library
+requirement. CLI is sufficient and proven.
+
+Polling interval for git status: 10 seconds passive, immediate after any operation.
+After a commit or push, immediately re-poll so the UI reflects the new state.
+
+---
+
+### M13 — Plan Journal
+
+*Plans will be appended here by Claude Code during execution.*
+
+---
+
+## MILESTONE 14 — AI PROVIDER SYSTEM
+
+### Definition of Done
+
+- [ ] AiProvider, AiProviderDisplay, AiChatPanelSettings interfaces in types
+- [ ] `AiChat = 'ai-chat'` added to PanelType enum
+- [ ] AppConfig extended with `providers: AiProvider[]`
+- [ ] V1/V2 config migration: existing Claude panel slots mapped to ai-chat with
+      a default claude.ai webview provider on first load
+- [ ] Windows Credential Manager integration via new `credentials.rs` Rust command
+- [ ] `storeApiKey`, `deleteApiKey`, `getKeyMasked`, `keyExists` Tauri commands implemented
+- [ ] SECURITY: no TypeScript function exists that retrieves the full key value
+- [ ] AiChatPanel component: webview mode loads URL in Tauri child webview (existing pattern)
+- [ ] AiChatPanel component: api mode renders native chat UI with streaming responses
+- [ ] API calls run Rust-side via `ai.rs` command — key retrieved from Credential Manager
+      and used within the same Rust function, never returned to frontend
+- [ ] ProvidersTab in Settings modal fully implemented:
+      list providers, add provider flow, masked key display, delete provider
+- [ ] Add provider flow: name, type, mode selection, URL or endpoint input, key input
+      (key input clears after save, masked indicator shows after)
+- [ ] Default providers seeded on first launch: claude.ai webview, chatgpt.com webview,
+      gemini.google.com webview — no API keys required for webview providers
+- [ ] `pnpm tsc --noEmit` zero errors, `cargo check` zero errors
+
+### Ordered Task List
+
+**Security Foundation — Build This First**
+1. Add `keyring` or `windows-credentials` crate to Cargo.toml — research which
+   is better maintained for Windows Credential Manager access, log in DECISIONS.md
+2. Create `src-tauri/src/commands/credentials.rs`:
+   - `store_api_key(ref_name: String, key: String) -> Result<(), String>`
+   - `delete_api_key(ref_name: String) -> Result<(), String>`
+   - `get_key_masked(ref_name: String) -> Result<String, String>`
+     Returns format: "•••••••••{last4chars}" — extracts last 4 from key in Credential Manager
+   - `key_exists(ref_name: String) -> Result<bool, String>`
+   - CRITICAL: No `get_api_key` command exists — intentional omission
+3. Register credentials commands in lib.rs
+4. Create `src/shell/credentials.ts` — wrappers for above, no key value returned
+
+**Types and Schema**
+5. Add AiProvider, AiProviderDisplay, AiChatPanelSettings to `src/types/panels.ts`
+6. Update AppConfig in `src/types/workspace.ts` to include `providers: AiProvider[]`
+7. Update loadConfig() migration to:
+   - Seed default providers (claude.ai, chatgpt.com, gemini webview) if providers is empty
+   - Map existing Claude panel slots (PanelType.Claude) to PanelType.AiChat with
+     providerId pointing to the seeded claude.ai provider
+
+**AiChatPanel — Webview Mode**
+8. Create `src/panels/ai-chat/AiChatPanel.tsx`:
+   - Reads providerId from settings, looks up provider from AppContext
+   - Webview mode: creates Tauri child webview at provider.webviewUrl
+     (exact same pattern as existing ClaudePanel — reference ERRORS.md entries)
+   - API mode: renders native chat UI (step 10)
+9. Register AiChatPanel in panel registry, add lazy import
+
+**AiChatPanel — API Mode**
+10. Create `src-tauri/src/commands/ai.rs`:
+    - `ai_chat_stream(provider_id: String, messages: Vec<AiMessage>) -> Result<(), String>`
+    - Retrieves key from Credential Manager using provider's apiKeyRef
+    - Constructs OpenAI-compatible request to provider's apiEndpoint
+    - Streams response via Tauri events to frontend
+    - Uses `reqwest` blocking or async — log crate choice in DECISIONS.md
+11. Create `src/panels/ai-chat/AiChatMessages.tsx` — message bubble list, streaming support
+12. Create `src/panels/ai-chat/AiChatInput.tsx` — textarea + send button
+
+**Settings Integration**
+13. Fully implement ProvidersTab in `src/workspace/Settings/ProvidersTab.tsx`:
+    - Lists providers with name, type badge, mode badge, masked key (if api mode)
+    - Enable/disable toggle per provider
+    - Add provider button → inline form:
+      name input, provider type selector, mode selector,
+      URL input (webview) or endpoint + key inputs (api)
+      Key input: type="password", dispatches storeApiKey on save, clears field
+    - Delete provider button with confirmation
+    - Masked key display: shows "•••••••••{last4}" from getKeyMasked, never full key
+14. Test: add claude.ai webview provider, set as AiChat panel, verify webview loads
+15. Test: add OpenAI api provider with key, send message, verify streamed response
+16. Test: delete provider, verify panel shows helpful empty state
+17. Test: restart app, verify providers persist, keys still work
+18. Log all new decisions (credential crate, reqwest usage) in DECISIONS.md
+19. Commit: "M14 complete — AI provider system"
+
+### Notes
+
+The webview mode implementation is nearly identical to the existing ClaudePanel.
+Read ClaudePanel.tsx and all related ERRORS.md entries before starting — especially
+the native webview input capture fix and the WebviewWindow vs child Webview distinction.
+Do not repeat solved problems.
+
+For API mode streaming, Tauri events are the correct mechanism — the Rust backend
+emits chunk events, the frontend listens and appends to the message. This avoids
+having to return the full response synchronously.
+
+The `custom` provider type with a user-defined apiEndpoint means Ollama running
+locally works automatically — it speaks the OpenAI API format on localhost.
+
+---
+
+### M14 — Plan Journal
+
+*Plans will be appended here by Claude Code during execution.*
+
+---
+
+## MILESTONE 15 — TAURI UPDATER
+
+### Definition of Done
+
+- [ ] `tauri-plugin-updater` added to Cargo.toml and configured
+- [ ] Update endpoint configured in tauri.conf.json pointing to private GitHub releases
+- [ ] Signing key generated and configured for update package verification
+- [ ] App checks for updates on startup (if updater.checkOnStartup is true)
+- [ ] If update available: non-intrusive notification in status bar or About tab
+- [ ] User can dismiss update notification and check again later
+- [ ] "Check for Updates" button in About tab triggers manual check
+- [ ] If update available: "Install Update" button downloads and installs
+- [ ] Install prompts user to restart app to apply update
+- [ ] Updater config (endpoint, checkOnStartup) stored in AppConfig and editable in settings
+- [ ] SECURITY: update packages are signature-verified before installation
+- [ ] No update is applied without explicit user confirmation
+- [ ] `cargo check` zero errors
+
+### Ordered Task List
+
+1. Generate Tauri updater signing keypair: `pnpm tauri signer generate`
+   Store private key securely (NOT in repo). Add public key to tauri.conf.json.
+   Log key storage approach in DECISIONS.md.
+2. Add `tauri-plugin-updater` to Cargo.toml
+3. Configure updater in tauri.conf.json:
+   - endpoints: private GitHub releases JSON URL
+   - pubkey: generated public key
+   - Check Tauri docs for correct V2 updater config format
+4. Create `src-tauri/src/commands/updater.rs`:
+   - `check_for_update() -> Result<Option<UpdateInfo>, String>`
+     Returns version + release notes if update available, None if up to date
+   - `install_update() -> Result<(), String>`
+     Downloads, verifies signature, stages for install on restart
+5. Create `src/shell/updater.ts` — wrappers for above
+6. Add UpdaterConfig to AppConfig schema (already in ARCHITECTURE.md Section 6)
+7. Update loadConfig() to seed default UpdaterConfig if missing
+8. Wire check-on-startup in App.tsx useEffect — runs once on mount if checkOnStartup true
+9. Add update available indicator to StatusBar — subtle chip that appears when update found
+10. Wire "Check for Updates" and "Install Update" buttons in AboutTab
+11. Test: mock an update available response, verify notification appears
+12. Test: verify app does not auto-install without user confirmation
+13. Log updater signing key storage decision in DECISIONS.md
+14. Commit: "M15 complete — Tauri updater"
+
+### Notes
+
+The private key must never be committed to the repository. Store it in a secure
+location outside the project directory. Document where it is stored in DECISIONS.md
+(without including the key itself). The public key is safe to commit — it lives
+in tauri.conf.json.
+
+The updater endpoint for private testing phase is the private GitHub repo releases
+API. When going public, update the endpoint URL in tauri.conf.json — no other
+changes required.
+
+---
+
+### M15 — Plan Journal
+
+*Plans will be appended here by Claude Code during execution.*
+
+---
+
+## MILESTONE 16 — DISTRIBUTION SETUP
+
+### Definition of Done
+
+- [ ] Private GitHub repository created for Yggdrasil
+- [ ] All reference files (ARCHITECTURE.md, IMPLEMENTATION.md, ERRORS.md,
+      DECISIONS.md, CLAUDE.md) committed to repo root
+- [ ] GitHub Actions workflow builds and signs Windows installer on push to main
+- [ ] Build produces both MSI and NSIS installers in release artifacts
+- [ ] Update JSON endpoint (update.json) published to GitHub releases
+- [ ] V3 installer tested on a clean Windows machine (no dev dependencies)
+- [ ] Installation flow is clean — no confusing prompts, no unsigned binary warnings
+- [ ] Tester instructions document written: how to install, how to update,
+      how to report issues, what data Yggdrasil collects (nothing)
+- [ ] At least one tester has successfully installed and used the app
+
+### Ordered Task List
+
+1. Create private GitHub repository — name: `Yggdrasil`
+2. Push codebase to main branch
+3. Create `.github/workflows/build.yml`:
+   - Trigger: push to main, manual dispatch
+   - Steps: install Rust, install Node, pnpm install, pnpm tauri build
+   - Sign installer with Tauri signing key (stored as GitHub Actions secret)
+   - Upload MSI + NSIS installers as release artifacts
+   - Publish update.json to GitHub releases for updater endpoint
+4. Add signing private key as GitHub Actions secret (TAURI_PRIVATE_KEY)
+   Log this in DECISIONS.md — key stored in GitHub Actions secrets only
+5. Run first build, verify artifacts are produced cleanly
+6. Test installation on a clean Windows machine:
+   - Install from NSIS installer
+   - Launch app — verify first-run experience shows
+   - Create workspace, verify all panels work
+   - Verify updater endpoint is reachable
+7. Write `TESTER_GUIDE.md` at repo root:
+   - What Yggdrasil is (2 sentences)
+   - System requirements (Windows 10+, git in PATH, Docker optional)
+   - How to install
+   - How to update
+   - How to report issues (GitHub issues or direct message)
+   - Privacy: "Yggdrasil collects zero telemetry. No data leaves your machine."
+8. Share installer link with first tester
+9. Commit: "M16 complete — V3 distribution setup"
+
+### Notes
+
+GitHub Actions is the right CI choice — free for private repos up to 2000 minutes/month,
+native support for Tauri build matrix, and secrets management for the signing key.
+
+The TESTER_GUIDE.md privacy statement is important. Testers will ask what the app
+collects. Having a clear written answer ready builds trust before they ask.
+
+---
+
+### M16 — Plan Journal
+
+*Plans will be appended here by Claude Code during execution.*
+
+---
+
+## APPENDIX A — V4+ CONSIDERATIONS
+
+Items sequenced beyond V3. Not forgotten — logged here so V4 planning has a
 starting point.
 
 **Delivered in V2 (M7–M10):**
 Panel resizing, flexible layout (1–4 panels, 2-row max), four layout presets,
-keyboard shortcuts (app-level), planning drawer content (scratchpad + milestone reader),
-HTTP endpoint widget.
+keyboard shortcuts, planning drawer content, HTTP endpoint widget.
 
-**Remaining — V3+ Considerations:**
+**Delivered in V3 (M11–M16):**
+Settings modal, first-run experience, git panel, AI provider system with
+Credential Manager security, Tauri updater, private distribution to testers.
+
+**Remaining — V4+ Considerations:**
 
 | Feature | Notes | Discussed |
 |---|---|---|
+| Plugin/extension system | Panel registry already supports it architecturally | 2026-02-24 |
+| Cloud sync | Config sync across machines — requires backend infrastructure | 2026-02-24 |
+| Workspace import/export | Share workspace config with keys stripped | 2026-02-25 |
+| Cross-platform (macOS/Linux) | Rust backend Windows-specific commands need abstraction | 2026-02-25 |
 | True arbitrary grid | Rows × columns beyond 2-row max | 2026-02-24 |
-| Plugin/extension system | Data-driven panel registry already supports this | 2026-02-24 |
-| Claude API integration | Add mode: 'api' to ClaudeSettings — schema ready | 2026-02-24 |
-| Cloud sync | Config sync across machines | 2026-02-24 |
-| Git operations | Commit, push, branch switching from within app | 2026-02-24 |
+| Git diff view | Visual diff of changed files — deferred from V3 git panel | 2026-02-25 |
+| Git branch create/switch/merge | Beyond V3 scope of push/pull/commit | 2026-02-25 |
+| Full keyboard navigation | Focus into panel content, not just visual indicator | 2026-02-25 |
+| Token usage widget | No public API from providers — deferred indefinitely | 2026-02-25 |
+| Public repository + distribution | After tester phase is complete | 2026-02-25 |
 | Additional widget types | Test runner, build status | 2026-02-24 |
-| Token usage widget | No public API from Claude/Gemini/others — deferred indefinitely | 2026-02-25 |
-| Full keyboard navigation | Focus into panel content, not just visual focus ring | 2026-02-25 |
-| Shortcut customization UI | Settings screen to remap shortcuts | 2026-02-25 |
 
 ---
 

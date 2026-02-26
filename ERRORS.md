@@ -428,6 +428,34 @@ other rows. Three rendering paths:
 
 ---
 
+## [webview][modal] Native webviews block global modals — same as PanelPicker issue
+**Date:** 2026-02-26
+**Milestone:** M11
+**Tags:** webview, modal, tauri, windows
+
+**Problem:**
+When a native Tauri webview (Claude or Webview panel) is active, opening CreateWorkspaceModal
+or SettingsModal renders the DOM overlay behind the native WebView2 control. The webview captures
+all pointer events in its area, making the modal unclickable. This is the same root cause as the
+PanelPicker issue logged above — native WebView2 controls render above all DOM content.
+
+**Failed Approaches:**
+None — recognized the pattern from the existing PanelPicker fix immediately.
+
+**Solution:**
+Added `yggdrasil:modal-open` / `yggdrasil:modal-close` custom events. Both WebviewPanel and
+ClaudePanel listen for these events (no panelId filter — ALL webviews move off-screen). Both
+SettingsModal and CreateWorkspaceModal dispatch these events on mount/unmount via useEffect.
+This mirrors the existing `yggdrasil:drag-start` / `yggdrasil:drag-end` pattern.
+
+**Implications:**
+- Any future global modal or overlay must dispatch `yggdrasil:modal-open` on mount and
+  `yggdrasil:modal-close` on unmount to avoid webview input capture
+- The pattern is now used in three contexts: picker (per-panel), drag (global), modal (global)
+- All three use `setPosition(-10000, -10000)` to move webviews off-screen
+
+---
+
 *End of ERRORS.md*
 *Version 1.0 — Created 2026-02-24*
 *This file only grows. Entries are never deleted.*

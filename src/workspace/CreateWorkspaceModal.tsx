@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { pickFolder, createNewWorkspace } from '../shell/workspace';
+import { EMOJI_PRESETS, COLOR_PRESETS } from './shared-presets';
 import type { Workspace } from '../types/workspace';
 
 interface CreateWorkspaceModalProps {
@@ -7,22 +8,19 @@ interface CreateWorkspaceModalProps {
   onCancel: () => void;
 }
 
-const EMOJI_PRESETS = [
-  '\u26A1', '\uD83D\uDE80', '\uD83C\uDF0A', '\uD83D\uDD25',
-  '\uD83C\uDF3F', '\uD83D\uDC8E', '\u2B50', '\uD83C\uDFAF',
-  '\uD83E\uDDE0', '\uD83D\uDEE0\uFE0F', '\uD83C\uDFB5', '\uD83C\uDF08',
-];
-
-const COLOR_PRESETS = [
-  '#00ff88', '#60a5fa', '#f472b6', '#fb923c',
-  '#a78bfa', '#34d399', '#fbbf24', '#f87171',
-];
-
 function CreateWorkspaceModal({ onConfirm, onCancel }: CreateWorkspaceModalProps) {
   const [name, setName] = useState('');
   const [icon, setIcon] = useState(EMOJI_PRESETS[0]);
   const [accentColor, setAccentColor] = useState(COLOR_PRESETS[0]);
   const [projectRoot, setProjectRoot] = useState('');
+
+  // Move native webviews off-screen while modal is open
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('yggdrasil:modal-open'));
+    return () => {
+      window.dispatchEvent(new CustomEvent('yggdrasil:modal-close'));
+    };
+  }, []);
 
   const handlePickFolder = async () => {
     const folder = await pickFolder();

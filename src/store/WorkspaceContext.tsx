@@ -1,7 +1,7 @@
 import { createContext, useContext, useReducer, useEffect, useRef, type ReactNode } from 'react';
 import { PanelType } from '../types/panels';
 import type { PanelSettings } from '../types/panels';
-import type { Workspace, AppConfig, LayoutPreset, PlanningDrawerContent } from '../types/workspace';
+import type { Workspace, AppConfig, LayoutPreset, PlanningDrawerContent, AppearanceSettings } from '../types/workspace';
 import type { KeyboardShortcut } from '../types/shortcuts';
 import { PANEL_REGISTRY } from '../panels/registry';
 import { PRESET_CONFIGS } from '../workspace/presets';
@@ -14,6 +14,7 @@ interface WorkspaceState {
   workspaces: Workspace[];
   activeWorkspaceId: string;
   shortcuts: KeyboardShortcut[];
+  appearance: AppearanceSettings;
 }
 
 // --- Actions ---
@@ -31,7 +32,10 @@ type WorkspaceAction =
   | { type: 'REMOVE_PANEL'; slotIndex: number }
   | { type: 'UPDATE_PANEL_SIZE_WEIGHT'; slotIndex: number; sizeWeight: number }
   | { type: 'UPDATE_ROW_WEIGHT'; rowWeight: number }
-  | { type: 'UPDATE_PLANNING'; planning: Partial<PlanningDrawerContent> };
+  | { type: 'UPDATE_PLANNING'; planning: Partial<PlanningDrawerContent> }
+  | { type: 'UPDATE_WORKSPACE'; workspace: Workspace }
+  | { type: 'UPDATE_SHORTCUTS'; shortcuts: KeyboardShortcut[] }
+  | { type: 'UPDATE_APPEARANCE'; appearance: AppearanceSettings };
 
 // --- Reducer ---
 
@@ -47,6 +51,7 @@ function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): Works
         workspaces: action.config.workspaces,
         activeWorkspaceId: action.config.activeWorkspaceId,
         shortcuts: action.config.shortcuts,
+        appearance: action.config.appearance,
       };
     }
     case 'SWITCH_WORKSPACE': {
@@ -190,6 +195,20 @@ function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): Works
         activeWorkspaceId: nextActiveId,
       };
     }
+    case 'UPDATE_WORKSPACE': {
+      const updated = { ...action.workspace, updatedAt: new Date().toISOString() };
+      if (updated.id === state.activeWorkspaceId) {
+        document.documentElement.style.setProperty('--accent', updated.accentColor);
+      }
+      return {
+        ...state,
+        workspaces: state.workspaces.map(ws => ws.id === updated.id ? updated : ws),
+      };
+    }
+    case 'UPDATE_SHORTCUTS':
+      return { ...state, shortcuts: action.shortcuts };
+    case 'UPDATE_APPEARANCE':
+      return { ...state, appearance: action.appearance };
     default:
       return state;
   }
@@ -211,6 +230,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     workspaces: [],
     activeWorkspaceId: '',
     shortcuts: [],
+    appearance: { terminalFontSize: 14, editorFontSize: 14 },
   });
 
   const initialLoadDone = useRef(false);
@@ -231,9 +251,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       activeWorkspaceId: state.activeWorkspaceId,
       workspaces: state.workspaces,
       shortcuts: state.shortcuts,
+      appearance: state.appearance,
     };
     saveConfig(config);
-  }, [state.workspaces, state.activeWorkspaceId, state.shortcuts, state.loading]);
+  }, [state.workspaces, state.activeWorkspaceId, state.shortcuts, state.appearance, state.loading]);
 
   const activeWorkspace = state.workspaces.find(w => w.id === state.activeWorkspaceId);
 

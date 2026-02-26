@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useWorkspaceContext } from '../store/WorkspaceContext';
+import { useAppContext } from '../store/AppContext';
 import WorkspaceCard from './WorkspaceCard';
 import CreateWorkspaceModal from './CreateWorkspaceModal';
 
 function Sidebar() {
   const { state, dispatch } = useWorkspaceContext();
+  const { dispatch: appDispatch } = useAppContext();
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   return (
@@ -94,16 +96,38 @@ function Sidebar() {
           + new workspace
         </button>
 
-        {/* Bottom section — version label */}
+        {/* Bottom section — gear icon + version label */}
         <div style={{
-          padding: '8px 12px',
+          padding: '6px 12px',
           borderTop: '1px solid var(--border-subtle)',
           fontFamily: 'var(--font-mono)',
           fontSize: 'var(--font-size-xs)',
           color: 'var(--text-faint)',
           userSelect: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
         }}>
-          yggdrasil v1
+          <button
+            onClick={() => appDispatch({ type: 'OPEN_SETTINGS' })}
+            title="Settings (Ctrl+,)"
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: '2px 4px',
+              fontSize: '14px',
+              color: 'var(--text-muted)',
+              cursor: 'pointer',
+              lineHeight: 1,
+              borderRadius: 3,
+              transition: 'color 0.15s',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--accent)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; }}
+          >
+            {'\u2699'}
+          </button>
+          <span>yggdrasil v3</span>
         </div>
       </div>
 

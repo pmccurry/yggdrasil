@@ -14,10 +14,11 @@ interface UseKeyboardShortcutsArgs {
   >;
   appDispatch: React.Dispatch<
     | { type: 'SET_PANEL_FOCUS'; index: number | null }
+    | { type: 'OPEN_SETTINGS' }
   >;
 }
 
-function buildKeyString(e: KeyboardEvent): string {
+export function buildKeyString(e: KeyboardEvent): string {
   const parts: string[] = [];
   if (e.ctrlKey) parts.push('ctrl');
   if (e.altKey) parts.push('alt');
@@ -57,6 +58,12 @@ export function useKeyboardShortcuts({
       e.preventDefault();
 
       const { action } = match;
+
+      // settings.open
+      if (action === 'settings.open') {
+        appDispatch({ type: 'OPEN_SETTINGS' });
+        return;
+      }
 
       // workspace.switch.N
       if (action.startsWith('workspace.switch.')) {

@@ -50,9 +50,15 @@ export interface Workspace {
   updatedAt:   string;
 }
 
+export interface AppearanceSettings {
+  terminalFontSize: number;  // 12–18, default 14
+  editorFontSize:   number;  // 12–18, default 14
+}
+
 export interface AppConfig {
   version:           string;
   activeWorkspaceId: string;
   workspaces:        Workspace[];
   shortcuts:         KeyboardShortcut[];
+  appearance:        AppearanceSettings;
 }

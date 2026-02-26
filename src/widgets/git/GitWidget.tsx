@@ -16,9 +16,9 @@ export async function pollGit(config: WidgetConfig): Promise<WidgetState> {
     let other = 0;
 
     for (const [, code] of entries) {
-      if (code === '??' || code === 'A') {
+      if (code === '??' || code.startsWith('A')) {
         untracked++;
-      } else if (code === 'M' || code === 'MM' || code === 'AM') {
+      } else if (code.includes('M')) {
         modified++;
       } else {
         other++;

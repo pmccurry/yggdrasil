@@ -6,6 +6,7 @@ export enum PanelType {
   FileTree = 'filetree',
   Editor   = 'editor',
   Claude   = 'claude',
+  Git      = 'git',
 }
 
 export interface PanelRegistryEntry {
@@ -40,6 +41,10 @@ export interface EditorSettings extends PanelSettings {
   rootPath:  string;
   openFile?: string;
   language?: string;
+}
+
+export interface GitPanelSettings extends PanelSettings {
+  repoPath: string;
 }
 
 export interface ClaudeSettings extends PanelSettings {

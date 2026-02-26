@@ -1,0 +1,239 @@
+.container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--bg-surface);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  min-height: var(--panel-header-height);
+  background-color: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-subtle);
+  gap: 8px;
+}
+
+.branchIcon {
+  color: var(--accent);
+  font-size: var(--font-size-md);
+}
+
+.branchName {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.fileSection {
+  padding: 4px 0;
+}
+
+.sectionLabel {
+  padding: 4px 10px;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  user-select: none;
+}
+
+.fileRow {
+  display: flex;
+  align-items: center;
+  padding: 3px 10px;
+  gap: 6px;
+  cursor: default;
+  transition: background-color 0.1s;
+}
+
+.fileRow:hover {
+  background-color: var(--bg-overlay);
+}
+
+.statusBadge {
+  width: 16px;
+  text-align: center;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.statusModified {
+  color: var(--status-warn);
+}
+
+.statusAdded {
+  color: var(--status-ok);
+}
+
+.statusDeleted {
+  color: var(--status-error);
+}
+
+.statusUntracked {
+  color: var(--text-muted);
+}
+
+.filePath {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+  font-size: var(--font-size-sm);
+}
+
+.toggleBtn {
+  background: none;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 3px;
+  flex-shrink: 0;
+  transition: background-color 0.1s, color 0.1s;
+}
+
+.toggleBtn:hover {
+  background-color: var(--bg-overlay);
+  color: var(--text-primary);
+}
+
+.commitForm {
+  border-top: 1px solid var(--border-subtle);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.commitInput {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  padding: 6px 8px;
+  resize: none;
+  min-height: 28px;
+  max-height: 80px;
+  outline: none;
+}
+
+.commitInput:focus {
+  border-color: var(--accent-border);
+}
+
+.commitInput::placeholder {
+  color: var(--text-faint);
+}
+
+.actionBar {
+  display: flex;
+  gap: 6px;
+}
+
+.actionBtn {
+  flex: 1;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: background-color 0.1s, color 0.1s;
+}
+
+.actionBtn:hover:not(:disabled) {
+  background-color: var(--bg-overlay);
+  color: var(--text-primary);
+}
+
+.actionBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.commitBtn {
+  composes: actionBtn;
+  background-color: var(--accent-dim);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+
+.commitBtn:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.emptyState {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-md);
+}
+
+.emptyIcon {
+  font-size: 24px;
+  opacity: 0.4;
+}
+
+.emptyLabel {
+  color: var(--text-secondary);
+}
+
+.errorState {
+  padding: 12px;
+  color: var(--status-error);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.loadingOverlay {
+  position: absolute;
+  inset: 0;
+  background-color: color-mix(in srgb, var(--bg-surface) 60%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  z-index: 10;
+}
+
+.cleanState {
+  padding: 12px 10px;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  text-align: center;
+}

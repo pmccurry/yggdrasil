@@ -58,8 +58,8 @@ Every plan journal entry uses one of these status tags:
 | M10 — HTTP Endpoint Widget | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
 | **— V3 —** | | | |
 | M11 — Settings Modal | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
-| M12 — First-Run Experience | `[IN PROGRESS]` | 2026-02-26 | — |
-| M13 — Git Panel | `[PLANNED]` | — | — |
+| M12 — First-Run Experience | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
+| M13 — Git Panel | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
 | M14 — AI Provider System | `[PLANNED]` | — | — |
 | M15 — Tauri Updater | `[PLANNED]` | — | — |
 | M16 — Distribution Setup | `[PLANNED]` | — | — |
@@ -1354,7 +1354,7 @@ creation as fast as possible. Resist the urge to add more steps.
 ### M12 — Plan Journal
 
 #### Plan: First-Run Experience Implementation — 2026-02-26
-**Status:** `[IN PROGRESS]`
+**Status:** `[COMPLETED]`
 
 **Goal:** Add a FirstRun welcome screen shown when `workspaces.length === 0`. Single screen with Yggdrasil title, explanation text, and "Create Workspace" CTA that opens existing CreateWorkspaceModal. Dismisses reactively when first workspace is created.
 
@@ -1442,7 +1442,31 @@ After a commit or push, immediately re-poll so the UI reflects the new state.
 
 ### M13 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### Plan Entry: M13 Git Panel — 2026-02-26
+**Status:** `[COMPLETED]`
+
+**Approach:**
+- Fix `get_git_status` Rust command to preserve full 2-char porcelain status codes (staged vs unstaged distinction)
+- Add 6 new Rust commands: git_stage, git_unstage, git_commit, git_push, git_pull, git_current_branch
+- TypeScript invoke wrappers in src/shell/git.ts
+- Git panel: full staging, committing, push/pull workflow panel
+- Panel follows existing patterns: CSS modules, PanelProps contract, lazy import in registry
+- Git widget updated to handle non-trimmed status codes
+
+**Steps:**
+1. Fix get_git_status trimming: `line[..2].to_string()` (was `.trim().to_string()`)
+2. Add 6 new Rust git commands in src-tauri/src/commands/git.rs
+3. Register commands in src-tauri/src/lib.rs
+4. Add TypeScript invoke wrappers in src/shell/git.ts
+5. Add Git to PanelType enum, GitPanelSettings interface in src/types/panels.ts
+6. Create src/panels/git/git.types.ts — GitFileEntry interface
+7. Update GitWidget.tsx for non-trimmed 2-char status codes
+8. Create GitPanel.module.css — panel styles using theme variables
+9. Create GitFileList.tsx — reusable file list with stage/unstage toggle
+10. Create GitCommitForm.tsx — commit message textarea with Ctrl+Enter
+11. Create GitPanel.tsx — main panel with refresh polling, stage/unstage/commit/push/pull
+12. Register Git panel in src/panels/registry.ts
+13. Verify: tsc --noEmit, cargo check, pnpm build — zero errors
 
 ---
 

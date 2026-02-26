@@ -39,7 +39,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRGNjA2OTQ2OUE2OUMyNUQKUldSZHdtbWFSbWxnVCt2UVpkTjFpNERIRlhCMHRLSmNTcytzUVlYZVpTWTRHSFBtcDJMc25WVTAK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IERDNDIzMTA3QzdENDBDOTUKUldTVkROVEhCekZDM01vbkFza2VWT2ZoaEtGNGswYklpZldjbk5MT1phYmlxMXRhQlhnaXpGQjYK",
       "endpoints": [
         "https://github.com/pmccurry/yggdrasil/releases/latest/download/latest.json"
       ],

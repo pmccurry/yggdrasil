@@ -1,7 +1,7 @@
 # CLAUDE.md
 # Yggdrasil — Session Enforcer & Pre-Flight Checklist
-# Last Updated: 2026-02-24
-# Version: 1.0
+# Last Updated: 2026-02-25
+# Version: 2.0
 
 ---
 
@@ -22,11 +22,13 @@ No exceptions. No shortcuts. No skipping steps because "you remember from last t
 
 ### Step 1 — Read ARCHITECTURE.md
 Read the full document. This is the constitution. Understand:
-- The current V1 scope and hard boundaries
+- The current active scope and hard boundaries (Section 1.5 for V3)
 - The panel contract rules (Section 7.1)
-- The file structure (Section 12) — new files go where the structure says
+- The file structure (Section 13) — new files go where the structure says
 - The core data schemas (Section 6) — nothing gets passed that doesn't conform
-- The known constraints and risks (Section 14)
+- The known constraints and risks (Section 15)
+- The V3 security model (Section 16) — API key rules are non-negotiable
+- The privacy principles (Section 1.2) — no telemetry, no external data
 
 ### Step 2 — Read IMPLEMENTATION.md
 Read the full document. Identify:
@@ -94,9 +96,12 @@ One task per subagent. Keep the main context clean.
 ### Verify Plan Before Executing
 After generating a plan and before writing any code:
 - Confirm the plan does not violate the panel contract (ARCHITECTURE.md Section 7.1)
-- Confirm all file paths exist in or are additive to ARCHITECTURE.md Section 12
-- Confirm no V1 excluded features are being introduced
+- Confirm all file paths exist in or are additive to ARCHITECTURE.md Section 13
+- Confirm no out-of-scope features are being introduced
 - Confirm the plan resolves the task's definition of done in IMPLEMENTATION.md
+- If the plan touches API keys or credentials: confirm it complies with
+  ARCHITECTURE.md Section 16 — no key ever reaches TypeScript, no key in config JSON,
+  no getApiKey command exists. Any plan that violates these rules must be revised.
 
 If any of these checks fail, revise the plan before proceeding.
 
@@ -271,10 +276,12 @@ time pressure, or "just this once" reasoning.
 | What's the definition of done? | IMPLEMENTATION.md active milestone |
 | Has this error been seen before? | ERRORS.md |
 | Has this decision been made? | DECISIONS.md |
-| What's out of scope for V1? | ARCHITECTURE.md Section 1.3 + IMPLEMENTATION.md Appendix A |
+| What's out of scope for V3? | ARCHITECTURE.md Section 1.5 + IMPLEMENTATION.md Appendix A |
+| API key security rules? | ARCHITECTURE.md Section 16 — read before any credentials work |
+| Privacy rules? | ARCHITECTURE.md Section 1.2 + Section 16.2 |
 
 ---
 
 *End of CLAUDE.md*
-*Version 1.0 — Created 2026-02-24*
+*Version 2.0 — Updated 2026-02-25 for V3*
 *This file runs first. Every session. No exceptions.*

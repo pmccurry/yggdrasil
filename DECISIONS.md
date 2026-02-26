@@ -964,6 +964,241 @@ binary size, proven pattern.
 
 ---
 
+## D030 — Settings lives in a modal, not a panel type
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Settings is implemented as a full-screen modal overlay triggered by a sidebar gear
+icon and Ctrl+, shortcut. It is not a panel type that occupies a slot in the layout.
+
+**Alternatives Considered:**
+- Settings as a panel type — user opens it in any slot. Rejected because it disrupts
+  the active workspace layout. Opening settings would replace a working panel, losing
+  its state. Settings are not something you work alongside — you open, change, close.
+- Dedicated settings workspace — a reserved workspace that only shows settings.
+  Rejected for the same reason: too disruptive, breaks the workspace mental model.
+
+**Rationale:**
+A modal sits above the application without disturbing it. Closing settings returns
+the user to exactly where they were. This is the correct UX pattern for settings
+in a workspace tool.
+
+**Implications:**
+- SettingsModal.tsx mounted in App.tsx, visible when AppContext.settingsOpen is true
+- OPEN_SETTINGS and CLOSE_SETTINGS actions in AppContext
+- settings.open shortcut (Ctrl+,) added to DEFAULT_SHORTCUTS
+- Gear icon at sidebar bottom dispatches OPEN_SETTINGS
+
+---
+
+## D031 — First-run: minimal single-screen, not multi-step wizard
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+First-run experience is a single full-screen overlay with a 3–4 sentence explanation
+and one primary CTA button ("Create Workspace"). No multi-step wizard, no feature
+tour, no interactive tutorial.
+
+**Alternatives Considered:**
+- Multi-step onboarding wizard — walks user through creating a workspace, adding
+  panels, configuring widgets step by step. Rejected because it delays the user
+  getting to actual work and is high maintenance to keep accurate as features change.
+- Blank app with tooltip hints — no dedicated first-run, just contextual hints.
+  Rejected because a new user seeing a blank panel grid has no mental model
+  for what to do first.
+
+**Rationale:**
+The fastest path to value is getting the user to their first workspace. Three sentences
+of context + one button achieves this. The app teaches itself through use better
+than any tutorial can. Testers who reach out with questions inform what the copy
+should say — iterate from real feedback, not speculation.
+
+**Implications:**
+- FirstRun.tsx renders when workspaces.length === 0
+- Dismissed reactively when first workspace is created — no manual close required
+- Never shown again once at least one workspace exists
+
+---
+
+## D032 — Git panel: dedicated panel type, scoped to V3 operations only
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Git operations live in a dedicated Git panel type (PanelType.Git), not as an
+extension of the existing file tree panel. V3 scope is: branch display, stage,
+unstage, commit, push, pull. Branch create/switch, diff view, and merge are V4.
+
+**Alternatives Considered:**
+- Extending the file tree panel with git action buttons — rejected because it
+  conflates two concerns (navigation vs version control) and makes the file tree
+  panel complex. Dedicated panel keeps concerns separated.
+- Full git client in V3 — diff view, branch management, merge conflict resolution.
+  Rejected because it's a large scope increase and V3 testers primarily need
+  commit/push/pull. Ship what's useful, expand from feedback.
+
+**Rationale:**
+A dedicated git panel matches how developers think about git — it's a distinct
+workflow, not a file tree extension. The V3 scope covers the 80% case: you've
+made changes, you want to commit and push. Branch management can follow once
+the core panel is proven useful.
+
+**Implications:**
+- Git = 'git' added to PanelType enum
+- GitPanel, GitFileList, GitCommitForm components in src/panels/git/
+- V4 adds diff view, branch create/switch, merge to this panel
+- D030 (git CLI over git2) governs the Rust implementation
+
+---
+
+## D033 — AI provider system: settings-managed, not panel-swap-menu-managed
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+AI providers are configured in the Settings modal (Providers tab). The panel swap
+menu shows only provider names the user has enabled — not a flat list of every
+possible AI option. The Claude panel type (V1/V2) is superseded by AiChat panel
+type (V3), with migration on first load.
+
+**Alternatives Considered:**
+- Every AI option in the panel swap menu — a flat list of all providers in the
+  picker. Rejected because it becomes overwhelming fast: claude.ai, claude API,
+  chatgpt, gemini webview, gemini API, codex, custom... The picker stays clean
+  by only showing what the user has configured.
+- Separate panel types per provider — ClaudePanel, GeminiPanel, ChatGPTPanel.
+  Rejected because it requires code changes to add providers. Settings-managed
+  means new providers require zero code — just a URL or endpoint.
+
+**Rationale:**
+A developer who uses Claude daily and occasionally Gemini doesn't need fifteen
+provider options in their panel picker. They configure what they use, the picker
+shows what they configured. Clean and personal.
+
+**Implications:**
+- AppConfig gains providers: AiProvider[] array
+- PanelType.Claude kept for migration, maps to PanelType.AiChat on load
+- AiChatPanelSettings.providerId references a configured provider by ID
+- Default providers seeded on first launch: claude.ai, chatgpt.com, gemini webview
+  (all webview mode, no API keys required)
+
+---
+
+## D034 — API key security: Credential Manager via Rust, frontend sees masked string only
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+API keys are stored in Windows Credential Manager accessed via Rust only. The
+TypeScript frontend never receives, stores, or transmits a key value. The frontend
+receives only a masked display string (last 4 chars) for UI confirmation. No
+get_api_key Tauri command exists — its absence is intentional and architectural.
+
+**Alternatives Considered:**
+- Store keys in config.json encrypted — rejected because config.json can be
+  accidentally committed, shared, or read by other processes. OS credential store
+  is the correct abstraction for secret storage.
+- Store keys in config.json as plaintext for simplicity — rejected immediately.
+  This would be a critical security defect.
+- Encrypt in frontend, store encrypted value in config — rejected because the
+  encryption key itself has to live somewhere, which doesn't solve the problem.
+
+**Rationale:**
+Windows Credential Manager is designed for exactly this use case. It integrates
+with user account security, is inaccessible to other user accounts, and is the
+standard Windows approach for application secret storage. The frontend never
+needing a key is a stronger security guarantee than any encryption scheme — you
+cannot leak what you don't have.
+
+**Implications:**
+- credentials.rs: storeApiKey, deleteApiKey, getKeyMasked, keyExists commands
+- No getApiKey command exists in Rust or TypeScript — intentional architectural gap
+- Key input in Settings clears immediately after submit
+- Frontend masked display: "•••••••••{last4}" from getKeyMasked
+- AI API calls run in ai.rs — key retrieved and used in same Rust function, not returned
+- Config JSON contains only apiKeyRef: string (credential store reference name)
+
+---
+
+## D035 — Updater: private GitHub releases endpoint, signature-verified
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Tauri updater plugin checks a private GitHub releases endpoint for update metadata.
+Update packages are verified against a signing key before installation. Private
+repo for tester phase; endpoint URL changes to public repo when ready to go public.
+
+**Alternatives Considered:**
+- Self-hosted update server — full control but requires infrastructure, maintenance,
+  and uptime responsibility. Rejected for tester phase complexity.
+- Manual update distribution (send new installer to each tester) — simple but
+  doesn't scale and creates version fragmentation. Rejected because the updater
+  infrastructure is not much extra work and pays dividends immediately.
+- Auto-install without user confirmation — rejected unconditionally. Updates are
+  never applied without explicit user action. Security and trust matter.
+
+**Rationale:**
+GitHub releases is the standard distribution mechanism for Tauri apps and pairs
+naturally with GitHub Actions CI. The private repo approach gives full control
+over who has the installer during testing. Switching to public requires only
+an endpoint URL change — no architectural change.
+
+**Implications:**
+- tauri-plugin-updater added to Cargo.toml
+- Signing keypair generated: private key stored outside repo (GitHub Actions secret),
+  public key in tauri.conf.json
+- UpdaterConfig in AppConfig: { endpoint, checkOnStartup, lastChecked, lastVersion }
+- Check on startup runs once in App.tsx useEffect if checkOnStartup true
+- Update available: subtle StatusBar indicator, not an intrusive popup
+- Install: explicit user confirmation required before download begins
+
+---
+
+## D036 — No telemetry, no analytics, no external crash reporting — ever
+**Date:** 2026-02-25
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Yggdrasil collects zero telemetry, zero analytics, and sends zero data to any
+external server beyond explicit user-initiated actions. This rule is permanent
+and constitutional — it cannot be overridden by any future feature requirement.
+
+**Alternatives Considered:**
+- Anonymous usage analytics (Mixpanel, PostHog etc.) — would help understand
+  feature usage. Rejected on principle: users did not consent to surveillance of
+  their developer workflow, and the privacy commitment is a core value of the product.
+- Crash reporting service (Sentry, Bugsnag) — would make bug reports richer.
+  Rejected for same reason. Crashes are logged locally only. Users share logs
+  manually if they choose to.
+- Opt-in telemetry — rejected because opt-in UX creates pressure and erodes trust.
+  Zero is the only number that means zero.
+
+**Rationale:**
+Developers are increasingly aware of the tools that watch them work. A workspace
+tool that respects this concern is a feature, not a limitation. The privacy
+commitment is also a competitive differentiator and a trust signal for testers.
+The TESTER_GUIDE.md will state this explicitly.
+
+**Implications:**
+- No analytics SDK is ever added as a dependency
+- No outbound requests except: user-initiated API calls, update check, widget polls
+- Crash logs written to AppData/Roaming/Yggdrasil/logs/ only
+- TESTER_GUIDE.md privacy section: "Yggdrasil collects zero telemetry. No data
+  leaves your machine except through actions you explicitly take."
+- This decision is logged in ARCHITECTURE.md Section 1.2 as a core principle
+
+---
+
 *End of DECISIONS.md*
 *Version 1.0 — Created 2026-02-24*
 *Entries are never deleted. Superseded entries are marked [SUPERSEDED].*

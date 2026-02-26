@@ -1,7 +1,7 @@
 # ARCHITECTURE.md
 # Yggdrasil — Project Constitution
 # Last Updated: 2026-02-25
-# Version: 2.0
+# Version: 3.0
 # Status: ACTIVE
 
 ---
@@ -60,6 +60,14 @@ accounts for its space from day one so it never requires structural surgery to a
   added later depends on V1 not shifting beneath it.
 - **The pre-flight checklist is non-negotiable.** Claude Code reads all reference files
   before writing any code. No exceptions.
+- **Privacy is a hard boundary, not a feature.** No telemetry, no analytics, no crash
+  reporting to any external server. User data never leaves the local machine except
+  through explicit user-initiated actions. This rule cannot be overridden by any
+  feature requirement.
+- **API keys are never accessible to the frontend.** Keys are stored in the OS
+  credential store (Windows Credential Manager) and retrieved Rust-side only.
+  The TypeScript frontend never sees, stores, or transmits a key. The config JSON
+  never contains a key. Violation of this rule is a critical security defect.
 
 ### 1.3 V1 Scope — COMPLETED 2026-02-25
 
@@ -93,16 +101,39 @@ V2 delivered:
 - HTTP endpoint widget (polls any URL, shows status — covers VPS health checks)
 - Schema migration from V1 fixed 3-panel tuple to V2 flexible panel array
 
-### 1.5 V3 Scope (Not Started)
+### 1.5 V3 Scope (Active) — Tester Release
 
-V3 candidates (see IMPLEMENTATION.md Appendix A):
-- True arbitrary grid (rows × columns) — two-row max only in V2
-- Plugin/extension system
-- Cloud sync or user accounts
-- Git operations beyond read-only status display
-- Claude API integration
-- Token usage widgets (no public API available from providers)
-- Any panel type not already in V1
+V3 is the first version shared beyond the original developer. The goal is a complete,
+trustworthy experience for Windows testers with real configuration, real AI provider
+flexibility, and a safe update path.
+
+V3 includes:
+- Settings modal (sidebar gear icon or Ctrl+,) — workspace config, accent colors,
+  startup commands, shortcut remapping, provider management
+- First-run experience — detected on zero workspaces, explains Yggdrasil concept,
+  guides workspace creation
+- Git panel (dedicated panel type) — branch display, staged/unstaged files,
+  stage/unstage, commit with message, push, pull
+- AI provider system — replaces hardcoded Claude panel with general AiChatPanel
+  supporting webview mode (any URL) and API mode (any OpenAI-compatible endpoint)
+- API key security — keys stored in Windows Credential Manager via Rust only,
+  frontend displays masked indicator (last 4 chars) only, key never in React state,
+  never in config JSON, never transmitted to any Yggdrasil server
+- Tauri updater — checks private GitHub releases endpoint, built to switch to
+  public endpoint when ready, prompts user on new version available
+- Distribution setup — private GitHub repo with releases, manual sharing for tester phase
+- Error handling threaded through all milestones — every failure state shows a
+  helpful user-facing message, zero silent failures or blank panels
+- No telemetry, no analytics, no crash reporting to any server — local only
+
+V3 explicitly excludes:
+- Plugin/extension system (V4)
+- Cloud sync or user accounts (V4)
+- Workspace import/export (V4)
+- Cross-platform support (V4)
+- Git diff view, branch create/switch, merge operations (V4)
+- True arbitrary grid beyond two-row max (V4)
+- Public repository / public distribution (V4)
 
 ---
 
@@ -292,7 +323,9 @@ export enum PanelType {
   Webview   = 'webview',
   FileTree  = 'filetree',
   Editor    = 'editor',
-  Claude    = 'claude',
+  Claude    = 'claude',   // V1/V2 — kept for config migration, maps to AiChat in V3
+  AiChat    = 'ai-chat',  // V3: general AI provider panel, replaces Claude
+  Git       = 'git',      // V3: git operations panel
 }
 
 export interface PanelRegistryEntry {
@@ -385,6 +418,64 @@ export interface HttpEndpointWidgetSettings extends WidgetSettings {
   label:          string;  // display label e.g. 'VPS' or 'API'
 }
 
+// ── V3 ADDITIONS ──────────────────────────────────────────────────────────────
+
+// AI Provider System — replaces ClaudeSettings in V1/V2
+// 'claude' | 'openai' | 'gemini' | 'custom' — extensible string for future providers
+export type AiProviderType = 'claude' | 'openai' | 'gemini' | 'custom';
+export type AiConnectionMode = 'webview' | 'api';
+
+export interface AiProvider {
+  id:              string;           // uuid — stable identifier for this provider config
+  name:            string;           // display name e.g. "Claude", "My GPT-4"
+  providerType:    AiProviderType;
+  mode:            AiConnectionMode;
+  webviewUrl?:     string;           // if mode === 'webview' — URL to load
+  apiEndpoint?:    string;           // if mode === 'api' — OpenAI-compatible base URL
+  apiKeyRef?:      string;           // credential store key name — NOT the key itself
+                                     // e.g. "yggdrasil/claude/default"
+                                     // key stored in Windows Credential Manager via Rust
+  model?:          string;           // for api mode e.g. "gpt-4o", "claude-opus-4-6"
+  enabled:         boolean;
+}
+
+// What the frontend receives for display — never the actual key
+export interface AiProviderDisplay {
+  id:           string;
+  name:         string;
+  providerType: AiProviderType;
+  mode:         AiConnectionMode;
+  webviewUrl?:  string;
+  apiEndpoint?: string;
+  keyMasked?:   string;   // last 4 chars only e.g. "...a3f9" — Rust provides this
+  model?:       string;
+  enabled:      boolean;
+}
+
+// AiChatPanel replaces ClaudePanel — panel type becomes 'ai-chat'
+export interface AiChatPanelSettings extends PanelSettings {
+  providerId: string;   // references AiProvider.id from AppConfig.providers
+}
+
+// Git panel settings
+export interface GitPanelSettings extends PanelSettings {
+  repoPath: string;   // defaults to workspace projectRoot
+}
+
+// Settings modal state — not persisted, UI-only
+export interface SettingsModalState {
+  open:        boolean;
+  activeTab:   'workspaces' | 'shortcuts' | 'providers' | 'appearance' | 'about';
+}
+
+// Updater config — stored in AppConfig
+export interface UpdaterConfig {
+  endpoint:       string;    // GitHub releases JSON endpoint
+  checkOnStartup: boolean;   // default: true
+  lastChecked?:   string;    // ISO date
+  lastVersion?:   string;    // last known latest version
+}
+
 export interface WidgetState {
   status:   WidgetStatus;
   value:    string;
@@ -458,7 +549,9 @@ export interface AppConfig {
   version:           string;
   activeWorkspaceId: string;
   workspaces:        Workspace[];
-  shortcuts:         KeyboardShortcut[];  // V2: user-configurable, defaults to DEFAULT_SHORTCUTS
+  shortcuts:         KeyboardShortcut[];  // V2
+  providers:         AiProvider[];        // V3: AI provider configs (no keys — refs only)
+  updater:           UpdaterConfig;       // V3: update check settings
 }
 ```
 
@@ -852,6 +945,38 @@ export async function dockerPs(): Promise<DockerContainer[]>
 // src/shell/http.ts
 export async function pollEndpoint(url: string, timeoutSecs: number): Promise<number>
 // returns actual HTTP status code. Runs Rust-side via curl to avoid CORS (D029).
+
+// V3 additions:
+
+// src/shell/credentials.ts
+// SECURITY: These functions never return key values to the frontend.
+export async function storeApiKey(ref: string, key: string): Promise<void>
+// Stores key in Windows Credential Manager. key param is passed to Rust, never stored in TS.
+export async function deleteApiKey(ref: string): Promise<void>
+export async function getKeyMasked(ref: string): Promise<string>
+// Returns "•••••••••{last4}" only. Full key never returned.
+export async function keyExists(ref: string): Promise<boolean>
+// NOTE: There is intentionally no getApiKey() TypeScript function.
+
+// src/shell/ai.ts
+// API calls run Rust-side so key never appears in TypeScript context.
+export async function aiChatStream(
+  providerId: string,
+  messages: AiMessage[],
+  onChunk: (chunk: string) => void
+): Promise<void>
+
+// src/shell/updater.ts
+export async function checkForUpdate(): Promise<{ version: string; releaseNotes: string } | null>
+export async function installUpdate(): Promise<void>
+
+// V3 extensions to src/shell/git.ts (adds to existing getGitStatus):
+export async function gitStage(repoPath: string, files: string[]): Promise<void>
+export async function gitUnstage(repoPath: string, files: string[]): Promise<void>
+export async function gitCommit(repoPath: string, message: string): Promise<void>
+export async function gitPush(repoPath: string): Promise<void>
+export async function gitPull(repoPath: string): Promise<void>
+export async function gitCurrentBranch(repoPath: string): Promise<string>
 ```
 
 ---
@@ -875,6 +1000,9 @@ Yggdrasil/
 │   │   │   ├── mod.rs
 │   │   │   ├── shell.rs
 │   │   │   ├── filesystem.rs
+│   │   │   ├── credentials.rs  # V3: Windows Credential Manager — keys never leave Rust
+│   │   │   ├── ai.rs           # V3: API call execution Rust-side
+│   │   │   ├── updater.rs      # V3: Tauri updater integration
 │   │   │   ├── git.rs
 │   │   │   ├── docker.rs
 │   │   │   ├── http.rs
@@ -929,24 +1057,44 @@ Yggdrasil/
 │   │   │   ├── EditorPanel.tsx
 │   │   │   ├── editor.types.ts
 │   │   │   └── editor.module.css
-│   │   └── claude/
-│   │       ├── ClaudePanel.tsx
-│   │       ├── claude.types.ts
-│   │       └── claude.module.css
+│   │   ├── claude/
+│   │   │   ├── ClaudePanel.tsx         # V1/V2 — kept for migration
+│   │   │   ├── claude.types.ts
+│   │   │   └── claude.module.css
+│   │   ├── ai-chat/                    # V3: general AI provider panel
+│   │   │   ├── AiChatPanel.tsx
+│   │   │   ├── AiChatInput.tsx
+│   │   │   ├── AiChatMessages.tsx
+│   │   │   ├── ai-chat.types.ts
+│   │   │   └── ai-chat.module.css
+│   │   └── git/                        # V3: git operations panel
+│   │       ├── GitPanel.tsx
+│   │       ├── GitFileList.tsx
+│   │       ├── GitCommitForm.tsx
+│   │       ├── git.types.ts
+│   │       └── git.module.css
 │   │
 │   ├── workspace/
 │   │   ├── Sidebar.tsx
 │   │   ├── StatusBar.tsx
 │   │   ├── LayoutGrid.tsx
-│   │   ├── DragHandle.tsx          # V2: resize handle between panels
-│   │   ├── LayoutPresetPicker.tsx  # V2: four preset options toolbar
-│   │   ├── PanelAddButton.tsx      # V2: + button to add panels
-│   │   ├── PlanningDrawer.tsx      # V2: full content (was V1 toggle only)
+│   │   ├── DragHandle.tsx          # V2
+│   │   ├── LayoutPresetPicker.tsx  # V2
+│   │   ├── PanelAddButton.tsx      # V2
+│   │   ├── PlanningDrawer.tsx      # V2
 │   │   ├── PlanningDrawer/
-│   │   │   ├── Scratchpad.tsx      # V2: per-workspace freeform notes
-│   │   │   └── MilestoneReader.tsx # V2: live IMPLEMENTATION.md viewer
+│   │   │   ├── Scratchpad.tsx      # V2
+│   │   │   └── MilestoneReader.tsx # V2
 │   │   ├── WorkspaceCard.tsx
-│   │   └── CreateWorkspaceModal.tsx
+│   │   ├── CreateWorkspaceModal.tsx
+│   │   ├── FirstRun.tsx            # V3: zero-workspace onboarding screen
+│   │   └── Settings/               # V3: settings modal
+│   │       ├── SettingsModal.tsx
+│   │       ├── WorkspacesTab.tsx
+│   │       ├── ShortcutsTab.tsx
+│   │       ├── ProvidersTab.tsx
+│   │       ├── AppearanceTab.tsx
+│   │       └── AboutTab.tsx
 │   │
 │   ├── widgets/
 │   │   ├── registry.ts
@@ -1110,7 +1258,51 @@ is documented in IMPLEMENTATION.md itself and enforced by CLAUDE.md.
 
 ---
 
-## 16. WHAT THIS DOCUMENT IS NOT
+## 16. V3 SECURITY MODEL
+
+### 16.1 API Key Storage — Non-Negotiable Rules
+
+These rules are constitutional. They cannot be overridden by feature requirements,
+deadline pressure, or "just for now" reasoning. Violation is a critical defect.
+
+1. **Keys never touch the frontend.** The TypeScript layer never receives, stores,
+   or transmits an API key under any circumstances.
+2. **Keys never touch config.json.** The persisted config file contains only a
+   credential reference name (e.g. `"yggdrasil/claude/default"`), never a key value.
+3. **Keys live in Windows Credential Manager.** All key storage, retrieval, and
+   deletion happens via Rust commands using the `keyring` or `windows-credentials`
+   crate. The Rust command that makes an API call retrieves the key, uses it for
+   that single request, and does not return it to the frontend.
+4. **The frontend receives only a masked display string.** When the UI needs to
+   show that a key is configured, Rust returns only the last 4 characters prefixed
+   with `"•••••••••"`. Example: `"•••••••••a3f9"`. This string is display-only.
+5. **Key input clears immediately.** The settings UI input field that accepts a
+   new key dispatches it to a Rust command on submit, then clears the field value.
+   The key value must never persist in React state beyond the submit event.
+6. **No key logging.** No Rust log statement, no TypeScript console.log, no error
+   message ever includes a key value or partial key (beyond the last 4 chars).
+
+### 16.2 Privacy Rules — Non-Negotiable
+
+1. **No telemetry.** No usage analytics, no event tracking, no session recording.
+2. **No crash reporting to any server.** Crashes are logged to a local file only.
+   Location: `AppData/Roaming/Yggdrasil/logs/`. User may share this file manually.
+3. **No phone-home behavior.** The only outbound network requests Yggdrasil makes
+   are: API calls explicitly initiated by the user, the update check (to the
+   configured GitHub endpoint), and HTTP endpoint widget polls configured by the user.
+4. **No third-party SDKs that collect data.** No analytics libraries, no error
+   tracking services, no A/B testing frameworks.
+
+### 16.3 Update Security
+
+The Tauri updater verifies installer signatures before applying any update.
+The signing key is held by the developer only. Update packages are never executed
+without signature verification passing. The update check endpoint returns only
+version metadata — no executable code is fetched during the check itself.
+
+---
+
+## 17. WHAT THIS DOCUMENT IS NOT
 
 - Implementation steps or build order → IMPLEMENTATION.md
 - Error logs or lessons learned → ERRORS.md

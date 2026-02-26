@@ -1288,6 +1288,35 @@ If the private key is lost, existing app installs cannot receive updates.
 
 ---
 
+## D040 — CI/CD: GitHub Actions with tauri-apps/tauri-action
+**Date:** 2026-02-26
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Use GitHub Actions with `tauri-apps/tauri-action@v0` for CI/CD. Workflow triggers
+on version tag push (`v*`), builds Windows installer, signs with Tauri updater key,
+generates `latest.json`, and creates a draft GitHub release.
+
+**Alternatives Considered:**
+- Manual workflow steps (install Rust, Node, build, construct latest.json by hand) —
+  more maintenance, error-prone latest.json generation. Rejected.
+- Other CI systems (CircleCI, GitLab CI) — no advantage over GitHub Actions for a
+  GitHub-hosted repo with free private repo minutes. Rejected.
+
+**Rationale:**
+The official tauri-action handles build, signing, latest.json, and release upload
+in one step. It's maintained by the Tauri team and purpose-built for this workflow.
+Draft releases allow review before publishing.
+
+**Implications:**
+- Two repo secrets required: TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD
+- Version tags (v*) trigger builds — no builds on regular commits
+- Releases are created as drafts — must be manually published
+- Version must be bumped in package.json, tauri.conf.json, and Cargo.toml before tagging
+
+---
+
 *End of DECISIONS.md*
 *Version 1.0 — Created 2026-02-24*
 *Entries are never deleted. Superseded entries are marked [SUPERSEDED].*

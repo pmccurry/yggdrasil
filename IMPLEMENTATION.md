@@ -60,9 +60,9 @@ Every plan journal entry uses one of these status tags:
 | M11 — Settings Modal | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
 | M12 — First-Run Experience | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
 | M13 — Git Panel | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
-| M14 — AI Provider System | `[IN PROGRESS]` | 2026-02-26 | — |
-| M15 — Tauri Updater | `[IN PROGRESS]` | 2026-02-26 | — |
-| M16 — Distribution Setup | `[PLANNED]` | — | — |
+| M14 — AI Provider System | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
+| M15 — Tauri Updater | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
+| M16 — Distribution Setup | `[IN PROGRESS]` | 2026-02-26 | — |
 
 ---
 
@@ -1570,7 +1570,7 @@ locally works automatically — it speaks the OpenAI API format on localhost.
 
 ### M14 — Plan Journal
 
-#### M14-P1 — AI Provider System Implementation `[IN PROGRESS]`
+#### M14-P1 — AI Provider System Implementation `[COMPLETED]`
 **Date:** 2026-02-26
 **Session scope:** Full M14 implementation — credentials, AI streaming, AiChatPanel, ProvidersTab, config migration
 
@@ -1651,7 +1651,7 @@ changes required.
 
 ### M15 — Plan Journal
 
-#### M15-P1 — Tauri Updater Implementation `[IN PROGRESS]`
+#### M15-P1 — Tauri Updater Implementation `[COMPLETED]`
 **Date:** 2026-02-26
 **Session scope:** Full M15 implementation — plugin setup, updater UI, signing key
 
@@ -1726,7 +1726,18 @@ collects. Having a clear written answer ready builds trust before they ask.
 
 ### M16 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### M16-P1 — Distribution Setup Implementation `[IN PROGRESS]`
+
+**Session scope:** GitHub Actions release workflow, TESTER_GUIDE.md, DECISIONS.md D040
+
+**Plan:**
+1. Create `.github/workflows/release.yml` — tauri-apps/tauri-action@v0, triggers on v* tags, Windows build, draft release with signing
+2. Create `TESTER_GUIDE.md` — install instructions, update flow, system requirements, privacy statement
+3. Add D040 to DECISIONS.md — CI/CD approach decision
+4. Update IMPLEMENTATION.md — status snapshot + plan journal
+5. Verify: `pnpm tsc --noEmit` + `cargo check` + `pnpm build` — zero errors
+
+**Manual steps (post-commit):** Add repo secrets, bump version, tag v0.1.0, push, verify build, publish release, test on clean machine
 
 ---
 

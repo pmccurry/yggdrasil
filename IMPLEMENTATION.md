@@ -61,7 +61,7 @@ Every plan journal entry uses one of these status tags:
 | M12 — First-Run Experience | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
 | M13 — Git Panel | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
 | M14 — AI Provider System | `[IN PROGRESS]` | 2026-02-26 | — |
-| M15 — Tauri Updater | `[PLANNED]` | — | — |
+| M15 — Tauri Updater | `[IN PROGRESS]` | 2026-02-26 | — |
 | M16 — Distribution Setup | `[PLANNED]` | — | — |
 
 ---
@@ -1651,7 +1651,22 @@ changes required.
 
 ### M15 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### M15-P1 — Tauri Updater Implementation `[IN PROGRESS]`
+**Date:** 2026-02-26
+**Session scope:** Full M15 implementation — plugin setup, updater UI, signing key
+
+**What was built:**
+1. **Dependencies**: tauri-plugin-updater 2.x + tauri-plugin-process 2.x (Rust), @tauri-apps/plugin-updater + @tauri-apps/plugin-process (JS)
+2. **Plugin registration**: Both plugins registered in lib.rs. Capabilities updated with updater + process permissions.
+3. **tauri.conf.json**: `createUpdaterArtifacts: true`, `plugins.updater` block with real pubkey and GitHub releases endpoint (`pmccurry/yggdrasil`), Windows passive install mode.
+4. **Updater wrapper** (`src/shell/updater.ts`): `checkForUpdate()` with typed result, `downloadAndInstall()` with progress callback + relaunch.
+5. **AppContext**: `updateAvailable` state, `SET_UPDATE_AVAILABLE` and `DISMISS_UPDATE` actions.
+6. **Startup check**: `useEffect` in AppShell runs `checkForUpdate()` once on mount, dispatches to AppContext if update found.
+7. **Status bar chip**: Warning-colored "v{version} available" button, opens Settings on click.
+8. **AboutTab rewrite**: Working "Check for Updates" button, update info display with release notes, "Install Update" button with download progress bar, auto-clearing "up to date" message.
+9. **Signing key**: Generated via `pnpm tauri signer generate`, private key at `~/.tauri/yggdrasil.key`, public key in tauri.conf.json. D039 logged in DECISIONS.md.
+
+**Verification:** tsc + cargo check + pnpm build — all pass, zero errors
 
 ---
 

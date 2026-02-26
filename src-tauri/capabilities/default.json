@@ -21,6 +21,10 @@
     "core:webview:allow-webview-size",
     "core:webview:allow-set-webview-focus",
     "store:default",
-    "dialog:default"
+    "dialog:default",
+    "updater:default",
+    "updater:allow-check",
+    "updater:allow-download-and-install",
+    "process:allow-restart"
   ]
 }

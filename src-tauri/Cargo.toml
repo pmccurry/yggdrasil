@@ -30,3 +30,5 @@ tauri-plugin-dialog = "2"
 keyring = { version = "3", features = ["windows-native"] }
 reqwest = { version = "0.12", features = ["stream", "json"] }
 futures-util = "0.3"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"

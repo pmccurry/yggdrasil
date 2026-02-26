@@ -1258,6 +1258,36 @@ native SSE streaming via `bytes_stream()`, and is widely used in the Tauri ecosy
 
 ---
 
+## D039 — Tauri updater signing key storage
+**Date:** 2026-02-26
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Store the Tauri updater private signing key at `~/.tauri/yggdrasil.key` outside the
+repository. The public key is committed in `src-tauri/tauri.conf.json` under
+`plugins.updater.pubkey`. For CI, the private key will be stored as a GitHub
+repository secret `TAURI_SIGNING_PRIVATE_KEY`.
+
+**Alternatives Considered:**
+- Env-only (no persistent file) — easy to lose the key, which permanently breaks
+  update delivery for existing installs. Rejected.
+- In-repo encrypted — adds complexity and risk of accidental exposure if the
+  encryption key leaks. Rejected.
+
+**Rationale:**
+The private key must never be committed. Home directory storage is the standard
+Tauri recommendation. GitHub secrets provide secure injection for CI builds.
+If the private key is lost, existing app installs cannot receive updates.
+
+**Implications:**
+- `~/.tauri/yggdrasil.key` must be backed up securely
+- `TAURI_SIGNING_PRIVATE_KEY` env var required for `pnpm tauri build` to produce signed artifacts
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` env var required (empty string if no password)
+- Build produces `.sig` files alongside each installer when key is present
+
+---
+
 *End of DECISIONS.md*
 *Version 1.0 — Created 2026-02-24*
 *Entries are never deleted. Superseded entries are marked [SUPERSEDED].*

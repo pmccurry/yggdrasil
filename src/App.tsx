@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { WorkspaceProvider, useWorkspaceContext } from './store/WorkspaceContext';
 import { AppProvider, useAppContext } from './store/AppContext';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { checkForUpdate } from './shell/updater';
 import Sidebar from './workspace/Sidebar';
 import StatusBar from './workspace/StatusBar';
 import LayoutGrid from './workspace/LayoutGrid';
@@ -19,6 +21,20 @@ function AppShell() {
     workspaceDispatch: wsDispatch,
     appDispatch,
   });
+
+  // Check for updates once on startup
+  useEffect(() => {
+    checkForUpdate().then(result => {
+      if (result?.available) {
+        appDispatch({
+          type: 'SET_UPDATE_AVAILABLE',
+          version: result.version,
+          notes: result.notes,
+          update: result.update,
+        });
+      }
+    });
+  }, [appDispatch]);
 
   if (wsState.loading) return null;
   if (wsState.workspaces.length === 0) return <FirstRun />;

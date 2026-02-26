@@ -4,3 +4,5 @@ pub mod git;
 pub mod docker;
 pub mod claude;
 pub mod http;
+pub mod credentials;
+pub mod ai;

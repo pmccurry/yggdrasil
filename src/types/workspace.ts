@@ -1,4 +1,4 @@
-import type { PanelSettings } from './panels';
+import type { PanelSettings, AiProvider } from './panels';
 import { PanelType } from './panels';
 import type { WidgetConfig } from './widgets';
 import type { KeyboardShortcut } from './shortcuts';
@@ -61,4 +61,5 @@ export interface AppConfig {
   workspaces:        Workspace[];
   shortcuts:         KeyboardShortcut[];
   appearance:        AppearanceSettings;
+  providers:         AiProvider[];
 }

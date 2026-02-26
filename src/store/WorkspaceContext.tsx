@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useEffect, useRef, type ReactNode } from 'react';
 import { PanelType } from '../types/panels';
-import type { PanelSettings } from '../types/panels';
+import type { PanelSettings, AiProvider } from '../types/panels';
 import type { Workspace, AppConfig, LayoutPreset, PlanningDrawerContent, AppearanceSettings } from '../types/workspace';
 import type { KeyboardShortcut } from '../types/shortcuts';
 import { PANEL_REGISTRY } from '../panels/registry';
@@ -15,6 +15,7 @@ interface WorkspaceState {
   activeWorkspaceId: string;
   shortcuts: KeyboardShortcut[];
   appearance: AppearanceSettings;
+  providers: AiProvider[];
 }
 
 // --- Actions ---
@@ -35,7 +36,10 @@ type WorkspaceAction =
   | { type: 'UPDATE_PLANNING'; planning: Partial<PlanningDrawerContent> }
   | { type: 'UPDATE_WORKSPACE'; workspace: Workspace }
   | { type: 'UPDATE_SHORTCUTS'; shortcuts: KeyboardShortcut[] }
-  | { type: 'UPDATE_APPEARANCE'; appearance: AppearanceSettings };
+  | { type: 'UPDATE_APPEARANCE'; appearance: AppearanceSettings }
+  | { type: 'ADD_PROVIDER'; provider: AiProvider }
+  | { type: 'UPDATE_PROVIDER'; provider: AiProvider }
+  | { type: 'DELETE_PROVIDER'; providerId: string };
 
 // --- Reducer ---
 
@@ -52,6 +56,7 @@ function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): Works
         activeWorkspaceId: action.config.activeWorkspaceId,
         shortcuts: action.config.shortcuts,
         appearance: action.config.appearance,
+        providers: action.config.providers,
       };
     }
     case 'SWITCH_WORKSPACE': {
@@ -209,6 +214,18 @@ function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): Works
       return { ...state, shortcuts: action.shortcuts };
     case 'UPDATE_APPEARANCE':
       return { ...state, appearance: action.appearance };
+    case 'ADD_PROVIDER':
+      return { ...state, providers: [...state.providers, action.provider] };
+    case 'UPDATE_PROVIDER':
+      return {
+        ...state,
+        providers: state.providers.map(p => p.id === action.provider.id ? action.provider : p),
+      };
+    case 'DELETE_PROVIDER':
+      return {
+        ...state,
+        providers: state.providers.filter(p => p.id !== action.providerId),
+      };
     default:
       return state;
   }
@@ -231,6 +248,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     activeWorkspaceId: '',
     shortcuts: [],
     appearance: { terminalFontSize: 14, editorFontSize: 14 },
+    providers: [],
   });
 
   const initialLoadDone = useRef(false);
@@ -252,9 +270,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       workspaces: state.workspaces,
       shortcuts: state.shortcuts,
       appearance: state.appearance,
+      providers: state.providers,
     };
     saveConfig(config);
-  }, [state.workspaces, state.activeWorkspaceId, state.shortcuts, state.appearance, state.loading]);
+  }, [state.workspaces, state.activeWorkspaceId, state.shortcuts, state.appearance, state.providers, state.loading]);
 
   const activeWorkspace = state.workspaces.find(w => w.id === state.activeWorkspaceId);
 

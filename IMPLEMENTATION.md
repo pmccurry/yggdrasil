@@ -60,7 +60,7 @@ Every plan journal entry uses one of these status tags:
 | M11 — Settings Modal | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
 | M12 — First-Run Experience | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
 | M13 — Git Panel | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
-| M14 — AI Provider System | `[PLANNED]` | — | — |
+| M14 — AI Provider System | `[IN PROGRESS]` | 2026-02-26 | — |
 | M15 — Tauri Updater | `[PLANNED]` | — | — |
 | M16 — Distribution Setup | `[PLANNED]` | — | — |
 
@@ -1570,7 +1570,25 @@ locally works automatically — it speaks the OpenAI API format on localhost.
 
 ### M14 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### M14-P1 — AI Provider System Implementation `[IN PROGRESS]`
+**Date:** 2026-02-26
+**Session scope:** Full M14 implementation — credentials, AI streaming, AiChatPanel, ProvidersTab, config migration
+
+**What was built:**
+1. **Rust credentials backend** (`src-tauri/src/commands/credentials.rs`): 4 commands using `keyring` crate — store_api_key, delete_api_key, get_key_masked, key_exists. No get_api_key command (intentional security).
+2. **Rust AI streaming** (`src-tauri/src/commands/ai.rs`): ai_chat_stream command with dual SSE support (OpenAI + Anthropic format). Key retrieved from credential store inline, never returned to frontend. Streams via Tauri events.
+3. **TypeScript types**: AiProvider, AiProviderType, AiConnectionMode, AiChatPanelSettings in panels.ts. AppConfig extended with providers array.
+4. **Shell wrappers**: credentials.ts (4 wrappers), ai.ts (AiMessage + aiChatStream).
+5. **WorkspaceContext**: 3 new actions (ADD_PROVIDER, UPDATE_PROVIDER, DELETE_PROVIDER), providers in state + save effect.
+6. **Config migration** in loadConfig(): seeds 3 default webview providers, remaps PanelType.Claude → PanelType.AiChat.
+7. **AiChatPanel** (`src/panels/ai-chat/`): Webview mode (Tauri child webview, ported ClaudePanel pattern) + API mode (native chat UI with streaming). CSS module with theme variables.
+8. **Panel registry**: AiChat entry added, Claude entry marked `hidden: true`, hidden filter added to PanelPicker + PanelAddButton.
+9. **ProvidersTab** full rewrite: provider list with badges, enable/disable, masked keys, delete with confirmation, inline add form with defaults per type.
+10. **DECISIONS.md**: D037 (keyring crate), D038 (reqwest crate).
+
+**Dependencies added:** keyring 3 (windows-native), reqwest 0.12 (stream, json), futures-util 0.3
+
+**Verification:** tsc + cargo check + pnpm build — all pass, zero errors
 
 ---
 

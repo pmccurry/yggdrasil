@@ -7,6 +7,7 @@ export enum PanelType {
   Editor   = 'editor',
   Claude   = 'claude',
   Git      = 'git',
+  AiChat   = 'ai-chat',
 }
 
 export interface PanelRegistryEntry {
@@ -16,6 +17,7 @@ export interface PanelRegistryEntry {
   description: string;
   component:   React.LazyExoticComponent<React.ComponentType<PanelProps>>;
   defaults:    PanelSettings;
+  hidden?:     boolean;
 }
 
 export interface PanelSettings {
@@ -51,6 +53,27 @@ export interface ClaudeSettings extends PanelSettings {
   mode:         'desktop' | 'webview';
   desktopPort?: number;
   webviewUrl?:  string;
+}
+
+// --- V3 AI Provider System ---
+
+export type AiProviderType = 'claude' | 'openai' | 'gemini' | 'custom';
+export type AiConnectionMode = 'webview' | 'api';
+
+export interface AiProvider {
+  id:              string;
+  name:            string;
+  providerType:    AiProviderType;
+  mode:            AiConnectionMode;
+  webviewUrl?:     string;
+  apiEndpoint?:    string;
+  apiKeyRef?:      string;
+  model?:          string;
+  enabled:         boolean;
+}
+
+export interface AiChatPanelSettings extends PanelSettings {
+  providerId: string;
 }
 
 export interface PanelProps {

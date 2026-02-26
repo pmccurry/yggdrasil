@@ -1199,6 +1199,65 @@ The TESTER_GUIDE.md will state this explicitly.
 
 ---
 
+## D037 — Credential storage: keyring crate for Windows Credential Manager
+**Date:** 2026-02-26
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Use the `keyring` v3 Rust crate with `windows-native` feature for API key storage in
+Windows Credential Manager.
+
+**Alternatives Considered:**
+- `windows-credentials` — Windows-only, thinner wrapper over the native API. Lighter
+  weight but locks the project to Windows permanently.
+- Raw Win32 API calls via `windows-sys` — maximum control but significant boilerplate
+  and maintenance burden for credential CRUD operations.
+
+**Rationale:**
+`keyring` is cross-platform (Windows Credential Manager, macOS Keychain, Linux Secret
+Service), well-maintained, and the most popular Rust credential crate. If Yggdrasil
+ever ships on macOS or Linux, credential storage works automatically. The `windows-native`
+feature ensures the Windows path uses the native API directly.
+
+**Implications:**
+- `keyring = { version = "3", features = ["windows-native"] }` in Cargo.toml
+- All credential operations go through `credentials.rs` — 4 commands only
+- No `get_api_key` command exists — intentional security design per ARCHITECTURE.md Section 16
+- Service name: `"yggdrasil"` for all credential entries
+
+---
+
+## D038 — HTTP streaming: reqwest crate for AI API calls
+**Date:** 2026-02-26
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Use `reqwest` v0.12 with `stream` and `json` features for AI provider API calls
+(OpenAI, Anthropic, Gemini, custom endpoints). SSE streaming responses are read
+chunk-by-chunk and forwarded to the frontend via Tauri events.
+
+**Alternatives Considered:**
+- `ureq` — simpler blocking HTTP client. No native async streaming — would need a
+  dedicated thread + manual chunked reads. Works but less ergonomic for SSE.
+- `tauri-plugin-http` — Tauri's built-in HTTP plugin. Adds a plugin dependency and
+  unclear SSE streaming support. The plugin is designed for simple request/response,
+  not long-lived streaming connections.
+
+**Rationale:**
+`reqwest` is the de facto standard Rust HTTP client. It has first-class async support,
+native SSE streaming via `bytes_stream()`, and is widely used in the Tauri ecosystem.
+`futures-util` provides `StreamExt` for iterating over the response stream.
+
+**Implications:**
+- `reqwest = { version = "0.12", features = ["stream", "json"] }` in Cargo.toml
+- `futures-util = "0.3"` for StreamExt
+- AI streaming in `ai.rs` uses reqwest async + Tauri event emission
+- Key is retrieved from credential store and used within the same Rust function — never returned
+
+---
+
 *End of DECISIONS.md*
 *Version 1.0 — Created 2026-02-24*
 *Entries are never deleted. Superseded entries are marked [SUPERSEDED].*

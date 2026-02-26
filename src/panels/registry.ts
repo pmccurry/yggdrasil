@@ -8,6 +8,7 @@ const FileTreePanel = lazy(() => import('./filetree/FileTreePanel'));
 const EditorPanel   = lazy(() => import('./editor/EditorPanel'));
 const ClaudePanel   = lazy(() => import('./claude/ClaudePanel'));
 const GitPanel      = lazy(() => import('./git/GitPanel'));
+const AiChatPanel   = lazy(() => import('./ai-chat/AiChatPanel'));
 
 export const PANEL_REGISTRY: Record<PanelType, PanelRegistryEntry> = {
   [PanelType.Terminal]: {
@@ -34,10 +35,16 @@ export const PANEL_REGISTRY: Record<PanelType, PanelRegistryEntry> = {
     type: PanelType.Claude, label: 'Claude', icon: '\u2726',
     description: 'Claude Desktop integration', component: ClaudePanel,
     defaults: { mode: 'desktop', desktopPort: 5173 },
+    hidden: true, // Legacy — migrated to AiChat in V3
   },
   [PanelType.Git]: {
     type: PanelType.Git, label: 'Git', icon: '\u2387',
     description: 'Git source control', component: GitPanel,
     defaults: { repoPath: '' },
+  },
+  [PanelType.AiChat]: {
+    type: PanelType.AiChat, label: 'AI Chat', icon: '\u2726',
+    description: 'AI chat provider', component: AiChatPanel,
+    defaults: { providerId: '' },
   },
 };

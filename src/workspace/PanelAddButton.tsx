@@ -71,7 +71,7 @@ function PanelAddButton({ onAddPanel }: PanelAddButtonProps) {
             gap: '2px',
             minWidth: '180px',
           }}>
-            {Object.values(PANEL_REGISTRY).map((entry) => (
+            {Object.values(PANEL_REGISTRY).filter(e => !e.hidden).map((entry) => (
               <button
                 key={entry.type}
                 onClick={() => {

@@ -45,7 +45,7 @@ function PanelPicker({ currentType, onSelect, onClose }: PanelPickerProps) {
         gap: '2px',
         minWidth: '180px',
       }}>
-        {Object.values(PANEL_REGISTRY).map((entry) => {
+        {Object.values(PANEL_REGISTRY).filter(e => !e.hidden).map((entry) => {
           const isActive = entry.type === currentType;
           return (
             <button

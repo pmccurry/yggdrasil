@@ -25,6 +25,11 @@ pub fn run() {
             commands::claude::detect_claude_desktop,
             commands::claude::launch_claude_desktop,
             commands::http::http_poll_endpoint,
+            commands::credentials::store_api_key,
+            commands::credentials::delete_api_key,
+            commands::credentials::get_key_masked,
+            commands::credentials::key_exists,
+            commands::ai::ai_chat_stream,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

@@ -1,6 +1,7 @@
 import { Store } from '@tauri-apps/plugin-store';
 import { open } from '@tauri-apps/plugin-dialog';
 import { PanelType } from '../types/panels';
+import type { AiProvider } from '../types/panels';
 import { WidgetType } from '../types/widgets';
 import type { WidgetConfig } from '../types/widgets';
 import type { AppConfig, Workspace, WorkspaceActivationHook, PlanningDrawerContent, PanelSlot, AppearanceSettings } from '../types/workspace';
@@ -30,6 +31,15 @@ function generateId(): string {
   return `ws-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function defaultProviders(): AiProvider[] {
+  const ts = Date.now();
+  return [
+    { id: `provider-${ts}-claude`, name: 'Claude', providerType: 'claude', mode: 'webview', webviewUrl: 'https://claude.ai', enabled: true },
+    { id: `provider-${ts + 1}-chatgpt`, name: 'ChatGPT', providerType: 'openai', mode: 'webview', webviewUrl: 'https://chatgpt.com', enabled: true },
+    { id: `provider-${ts + 2}-gemini`, name: 'Gemini', providerType: 'gemini', mode: 'webview', webviewUrl: 'https://gemini.google.com', enabled: true },
+  ];
+}
+
 function defaultWidgets(projectRoot: string): WidgetConfig[] {
   const widgets: WidgetConfig[] = [];
   if (projectRoot) {
@@ -55,6 +65,8 @@ function defaultWidgets(projectRoot: string): WidgetConfig[] {
 export function createDefaultConfig(): AppConfig {
   const now = new Date().toISOString();
   const id = generateId();
+  const providers = defaultProviders();
+  const claudeProviderId = providers[0].id;
   const defaultWorkspace: Workspace = {
     id,
     name: 'My Workspace',
@@ -67,7 +79,7 @@ export function createDefaultConfig(): AppConfig {
       panels: [
         { id: 'slot-0', type: PanelType.Terminal, settings: { shell: 'powershell.exe', cwd: '', startupCommands: [] }, sizeWeight: 2, row: 0 },
         { id: 'slot-1', type: PanelType.Webview, settings: { url: '', label: 'Webview' }, sizeWeight: 1, row: 0 },
-        { id: 'slot-2', type: PanelType.Claude, settings: { mode: 'desktop', desktopPort: 5173, webviewUrl: 'https://claude.ai' }, sizeWeight: 1, row: 0 },
+        { id: 'slot-2', type: PanelType.AiChat, settings: { providerId: claudeProviderId }, sizeWeight: 1, row: 0 },
       ],
     },
     widgets: defaultWidgets(''),
@@ -83,6 +95,7 @@ export function createDefaultConfig(): AppConfig {
     workspaces: [defaultWorkspace],
     shortcuts: DEFAULT_SHORTCUTS,
     appearance: { terminalFontSize: 14, editorFontSize: 14 },
+    providers,
   };
 }
 
@@ -105,7 +118,7 @@ export function createNewWorkspace(
       panels: [
         { id: 'slot-0', type: PanelType.Terminal, settings: { shell: 'powershell.exe', cwd: projectRoot, startupCommands: projectRoot ? [`cd ${projectRoot}`] : [] }, sizeWeight: 2, row: 0 },
         { id: 'slot-1', type: PanelType.Webview, settings: { url: '', label: 'Webview' }, sizeWeight: 1, row: 0 },
-        { id: 'slot-2', type: PanelType.Claude, settings: { mode: 'desktop', desktopPort: 5173, webviewUrl: 'https://claude.ai' }, sizeWeight: 1, row: 0 },
+        { id: 'slot-2', type: PanelType.AiChat, settings: { providerId: '' }, sizeWeight: 1, row: 0 },
       ],
     },
     widgets: defaultWidgets(projectRoot),
@@ -190,6 +203,23 @@ export async function loadConfig(): Promise<AppConfig> {
         }
       }
     }
+    // Migrate V3: add providers if missing, remap Claude panels to AiChat
+    if (!config.providers || config.providers.length === 0) {
+      const seeded = defaultProviders();
+      (config as { providers: AiProvider[] }).providers = seeded;
+      const claudeId = seeded[0].id;
+
+      for (const ws of config.workspaces) {
+        for (const panel of ws.layout.panels) {
+          if (panel.type === PanelType.Claude || (panel.type as string) === 'claude') {
+            panel.type = PanelType.AiChat;
+            panel.settings = { providerId: claudeId };
+          }
+        }
+      }
+      migrated = true;
+    }
+
     if (migrated) {
       await store.set(CONFIG_KEY, config);
       await store.save();

@@ -57,8 +57,8 @@ Every plan journal entry uses one of these status tags:
 | M9 — Planning Drawer Content | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
 | M10 — HTTP Endpoint Widget | `[COMPLETED]` | 2026-02-25 | 2026-02-25 |
 | **— V3 —** | | | |
-| M11 — Settings Modal | `[IN PROGRESS]` | 2026-02-26 | — |
-| M12 — First-Run Experience | `[PLANNED]` | — | — |
+| M11 — Settings Modal | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
+| M12 — First-Run Experience | `[IN PROGRESS]` | 2026-02-26 | — |
 | M13 — Git Panel | `[PLANNED]` | — | — |
 | M14 — AI Provider System | `[PLANNED]` | — | — |
 | M15 — Tauri Updater | `[PLANNED]` | — | — |
@@ -1297,7 +1297,7 @@ shortcuts, zero providers all need friendly empty states, not blank panels.
 ### M11 — Plan Journal
 
 #### Plan: Settings Modal Implementation — 2026-02-26
-**Status:** `[IN PROGRESS]`
+**Status:** `[COMPLETED]`
 
 **Goal:** Add a settings modal with 5 tabs (Workspaces, Shortcuts, Providers stub, Appearance, About) accessible via sidebar gear icon and Ctrl+, shortcut.
 
@@ -1353,7 +1353,17 @@ creation as fast as possible. Resist the urge to add more steps.
 
 ### M12 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### Plan: First-Run Experience Implementation — 2026-02-26
+**Status:** `[IN PROGRESS]`
+
+**Goal:** Add a FirstRun welcome screen shown when `workspaces.length === 0`. Single screen with Yggdrasil title, explanation text, and "Create Workspace" CTA that opens existing CreateWorkspaceModal. Dismisses reactively when first workspace is created.
+
+**Architecture:** FirstRun is a full-viewport component rendered in App.tsx's AppShell before the normal layout. Loading guard (`wsState.loading`) prevents flash. CreateWorkspaceModal dispatches `CREATE_WORKSPACE` to WorkspaceContext — context updates reactively and `workspaces.length > 0` causes normal layout to render. No new webview concerns — CreateWorkspaceModal already dispatches `yggdrasil:modal-open/close`.
+
+**Files created:** `src/workspace/FirstRun.tsx`
+**Files modified:** `src/App.tsx`, `IMPLEMENTATION.md`
+
+**Verification:** `pnpm tsc --noEmit` — 0 errors. `pnpm build` — 0 errors.
 
 ---
 

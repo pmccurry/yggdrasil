@@ -6,6 +6,7 @@ import StatusBar from './workspace/StatusBar';
 import LayoutGrid from './workspace/LayoutGrid';
 import PlanningDrawer from './workspace/PlanningDrawer';
 import SettingsModal from './workspace/Settings/SettingsModal';
+import FirstRun from './workspace/FirstRun';
 
 function AppShell() {
   const { state: wsState, dispatch: wsDispatch, activeWorkspace } = useWorkspaceContext();
@@ -18,6 +19,9 @@ function AppShell() {
     workspaceDispatch: wsDispatch,
     appDispatch,
   });
+
+  if (wsState.loading) return null;
+  if (wsState.workspaces.length === 0) return <FirstRun />;
 
   return (
     <div style={{

@@ -456,6 +456,48 @@ This mirrors the existing `yggdrasil:drag-start` / `yggdrasil:drag-end` pattern.
 
 ---
 
+## [CI/CD] Tauri updater signing key password mismatch in GitHub Actions
+**Date:** 2026-02-26
+**Milestone:** M16
+**Tags:** CI/CD, GitHub Actions, Tauri, signing, secrets
+
+**Problem:**
+GitHub Actions release workflow failed repeatedly with `failed to decode secret key:
+incorrect updater private key password: Wrong password for that key`. The build and
+packaging steps succeeded (MSI + NSIS produced), but artifact signing failed every time.
+
+**Failed Approaches:**
+1. Omitting `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` env var — Tauri interprets absence as
+   "no password," but the key was encrypted (even with empty password input).
+2. Hardcoding `TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''` — same result, empty string is
+   not the same as "no password" to the signing library.
+3. Regenerating key with `-p ""` — `tauri signer generate` still produces an encrypted
+   key (header reads `rsign encrypted secret key`). Empty string IS a password.
+4. Copy-pasting key contents into GitHub Actions secrets UI — subtle encoding issues
+   possible with manual copy-paste.
+
+**Solution:**
+1. Regenerate key with an explicit real password: `npx tauri signer generate -w <path> -f -p "yggdrasil" --ci`
+2. Use `gh secret set` CLI to push both secrets directly from local files, avoiding
+   copy-paste corruption:
+   - `gh secret set TAURI_SIGNING_PRIVATE_KEY < key_file`
+   - `echo -n "yggdrasil" | gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+3. Restore `TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}`
+   in the workflow file.
+4. Verified signing works locally before pushing.
+
+**Implications:**
+- Tauri signer ALWAYS encrypts the private key — there is no truly passwordless mode.
+  Even pressing Enter at the prompt creates an encrypted key with empty-string password.
+- GitHub Actions secrets cannot store empty strings — so a real password is required.
+- Always use `gh secret set` from CLI to set secrets from files — avoids encoding and
+  whitespace issues from the GitHub web UI.
+- Always test signing locally (`npx tauri signer sign <file>`) before pushing CI changes.
+- The `--ci` flag on `tauri signer generate` skips interactive prompts but still requires
+  `-p` to set the password.
+
+---
+
 *End of ERRORS.md*
 *Version 1.0 — Created 2026-02-24*
 *This file only grows. Entries are never deleted.*

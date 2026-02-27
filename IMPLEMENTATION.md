@@ -62,7 +62,7 @@ Every plan journal entry uses one of these status tags:
 | M13 — Git Panel | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
 | M14 — AI Provider System | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
 | M15 — Tauri Updater | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
-| M16 — Distribution Setup | `[IN PROGRESS]` | 2026-02-26 | — |
+| M16 — Distribution Setup | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
 
 ---
 
@@ -1726,7 +1726,7 @@ collects. Having a clear written answer ready builds trust before they ask.
 
 ### M16 — Plan Journal
 
-#### M16-P1 — Distribution Setup Implementation `[IN PROGRESS]`
+#### M16-P1 — Distribution Setup Implementation `[COMPLETED]`
 
 **Session scope:** GitHub Actions release workflow, TESTER_GUIDE.md, DECISIONS.md D040
 
@@ -1738,6 +1738,8 @@ collects. Having a clear written answer ready builds trust before they ask.
 5. Verify: `pnpm tsc --noEmit` + `cargo check` + `pnpm build` — zero errors
 
 **Manual steps (post-commit):** Add repo secrets, bump version, tag v0.1.0, push, verify build, publish release, test on clean machine
+
+**Verification:** Build passed on GitHub Actions, v0.1.0 release published with NSIS + MSI installers, .sig files, and latest.json
 
 ---
 

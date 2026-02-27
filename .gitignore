@@ -15,6 +15,9 @@ dist-ssr
 # Claude Code local settings
 .claude/
 
+# Literal ~ directory (created by unexpanded tilde in shell commands)
+~/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

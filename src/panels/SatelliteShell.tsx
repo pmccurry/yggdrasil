@@ -5,6 +5,7 @@ import { PANEL_REGISTRY } from './registry';
 import { loadConfig } from '../shell/workspace';
 import { emitRecallRequested } from '../shell/satellite';
 import { listen } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import PanelSkeleton from './PanelSkeleton';
 
 function SatelliteShell() {
@@ -51,14 +52,17 @@ function SatelliteShell() {
     });
   }, [panelId, panelType, workspaceId, ptyId, entry.defaults]);
 
-  // Listen for recall from main window (main-initiated recall)
+  // Listen for recall from main window — set skipKill then self-close
   useEffect(() => {
     let unlisten: (() => void) | undefined;
     listen(`panel:recall-requested:${panelId}`, () => {
-      // Set skipKill so terminal PTY survives
+      // Set skipKill so terminal PTY survives unmount
       skipKillRef.current = true;
-      // Update settings to propagate to TerminalPanel
       setPanelSettings(prev => prev ? { ...prev, _skipKill: true } : prev);
+      // Wait for React to propagate skipKill, then destroy this window
+      setTimeout(() => {
+        getCurrentWebviewWindow().destroy();
+      }, 100);
     }).then(fn => { unlisten = fn; });
 
     return () => { if (unlisten) unlisten(); };
@@ -124,9 +128,12 @@ function SatelliteShell() {
             // Set skipKill before emitting recall
             skipKillRef.current = true;
             setPanelSettings(prev => prev ? { ...prev, _skipKill: true } : prev);
-            // Small delay to let React propagate skipKill to TerminalPanel
-            setTimeout(() => {
-              emitRecallRequested(panelId);
+            // Emit recall to main window, then self-close after React propagates skipKill
+            setTimeout(async () => {
+              await emitRecallRequested(panelId);
+              setTimeout(() => {
+                getCurrentWebviewWindow().destroy();
+              }, 100);
             }, 50);
           }}
           style={{

@@ -7,6 +7,7 @@ import {
   openSatelliteWindow,
   closeSatelliteWindow,
   getSatelliteWindows,
+  emitRecallRequested,
 } from '../shell/satellite';
 
 export function useSatellitePanel() {
@@ -81,7 +82,8 @@ export function useSatellitePanel() {
       }
     }
 
-    await closeSatelliteWindow(info.windowLabel);
+    // Emit recall event — satellite will self-close after setting skipKill
+    await emitRecallRequested(panelId);
     dispatch({ type: 'SATELLITE_CLOSE', panelId });
 
     // Clear _skipKill after recall so the main window's terminal can kill normally on unmount

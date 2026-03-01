@@ -16,6 +16,7 @@ pub fn run() {
             commands::shell::kill_shell,
             commands::filesystem::read_directory,
             commands::filesystem::read_file,
+            commands::filesystem::write_file,
             commands::git::get_git_status,
             commands::git::git_stage,
             commands::git::git_unstage,

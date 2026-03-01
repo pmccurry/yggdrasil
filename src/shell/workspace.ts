@@ -1,11 +1,12 @@
 import { Store } from '@tauri-apps/plugin-store';
-import { open } from '@tauri-apps/plugin-dialog';
+import { open, save } from '@tauri-apps/plugin-dialog';
+import { invoke } from '@tauri-apps/api/core';
 import { PanelType } from '../types/panels';
 import type { AiProvider } from '../types/panels';
 import { WidgetType } from '../types/widgets';
 import type { WidgetConfig } from '../types/widgets';
 import type { NotificationConfig } from '../types/widgets';
-import type { AppConfig, Workspace, WorkspaceActivationHook, PlanningDrawerContent, PanelSlot, AppearanceSettings } from '../types/workspace';
+import type { AppConfig, Workspace, WorkspaceActivationHook, PlanningDrawerContent, PanelSlot, AppearanceSettings, WorkspaceExport } from '../types/workspace';
 import { DEFAULT_SHORTCUTS } from '../types/shortcuts';
 
 const STORE_FILE = 'config.json';
@@ -304,4 +305,83 @@ export async function pickFolder(): Promise<string | null> {
   });
   if (typeof selected === 'string') return selected;
   return null;
+}
+
+export async function exportWorkspace(
+  workspace: Workspace,
+  providers: AiProvider[],
+): Promise<boolean> {
+  // Find providers referenced by AiChat panels
+  const referencedIds = new Set<string>();
+  for (const panel of workspace.layout.panels) {
+    if (panel.type === PanelType.AiChat && panel.settings.providerId) {
+      referencedIds.add(panel.settings.providerId as string);
+    }
+  }
+
+  // Strip apiKeyRef from each referenced provider
+  const exportProviders: Omit<AiProvider, 'apiKeyRef'>[] = providers
+    .filter(p => referencedIds.has(p.id))
+    .map(({ apiKeyRef: _, ...rest }) => rest);
+
+  // Build export object (workspace without id)
+  const { id: _, ...workspaceWithoutId } = workspace;
+  const exportData: WorkspaceExport = {
+    yggdrasilExport: true,
+    schemaVersion: '4.0',
+    exportedAt: new Date().toISOString(),
+    workspace: {
+      ...workspaceWithoutId,
+      providers: exportProviders.length > 0 ? exportProviders : undefined,
+    },
+  };
+
+  const path = await save({
+    title: 'Export Workspace',
+    defaultPath: `${workspace.name.replace(/[^a-zA-Z0-9-_ ]/g, '')}.yggdrasil.json`,
+    filters: [{ name: 'Yggdrasil Workspace', extensions: ['yggdrasil.json'] }],
+  });
+  if (!path) return false;
+
+  await invoke('write_file', {
+    path,
+    contents: JSON.stringify(exportData, null, 2),
+  });
+  return true;
+}
+
+export async function importWorkspaceFile(): Promise<WorkspaceExport | null> {
+  const selected = await open({
+    title: 'Import Workspace',
+    filters: [{ name: 'Yggdrasil Workspace', extensions: ['yggdrasil.json', 'json'] }],
+  });
+  if (typeof selected !== 'string') return null;
+
+  const contents = await invoke<string>('read_file', { path: selected });
+  const data = JSON.parse(contents);
+  if (!data || data.yggdrasilExport !== true) {
+    throw new Error('Not a valid Yggdrasil workspace export file');
+  }
+  return data as WorkspaceExport;
+}
+
+export function processImportedWorkspace(
+  exportData: WorkspaceExport,
+  existingNames: string[],
+): Workspace {
+  const now = new Date().toISOString();
+  let name = exportData.workspace.name;
+  if (existingNames.includes(name)) {
+    name = `${name} (imported)`;
+  }
+
+  const { providers: _, ...workspaceFields } = exportData.workspace;
+  return {
+    ...workspaceFields,
+    id: generateId(),
+    name,
+    projectRoot: '',
+    createdAt: now,
+    updatedAt: now,
+  };
 }

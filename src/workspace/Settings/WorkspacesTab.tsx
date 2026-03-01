@@ -1,14 +1,23 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useWorkspaceContext } from '../../store/WorkspaceContext';
-import { pickFolder } from '../../shell/workspace';
+import { pickFolder, exportWorkspace, importWorkspaceFile, processImportedWorkspace } from '../../shell/workspace';
 import { EMOJI_PRESETS_EXTENDED, COLOR_PRESETS } from '../shared-presets';
 import type { Workspace } from '../../types/workspace';
+import type { AiProvider } from '../../types/panels';
 
 function WorkspacesTab() {
   const { state, dispatch } = useWorkspaceContext();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<Workspace | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [apiKeyNotice, setApiKeyNotice] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    if (!statusMessage) return;
+    const timer = setTimeout(() => setStatusMessage(null), 4000);
+    return () => clearTimeout(timer);
+  }, [statusMessage]);
 
   function startEdit(ws: Workspace) {
     setEditingId(ws.id);
@@ -42,12 +51,151 @@ function WorkspacesTab() {
     if (editingId === workspaceId) cancelEdit();
   }
 
+  async function handleExport(ws: Workspace) {
+    try {
+      const success = await exportWorkspace(ws, state.providers);
+      if (success) {
+        setStatusMessage({ text: `Exported "${ws.name}" successfully`, type: 'success' });
+      }
+    } catch {
+      setStatusMessage({ text: 'Export failed — could not write file', type: 'error' });
+    }
+  }
+
+  async function handleImport() {
+    try {
+      const exportData = await importWorkspaceFile();
+      if (!exportData) return; // cancelled
+
+      const existingNames = state.workspaces.map(w => w.name);
+      const newWorkspace = processImportedWorkspace(exportData, existingNames);
+
+      // Provider remapping
+      const exportedProviders = exportData.workspace.providers || [];
+      const oldToNewProviderMap = new Map<string, string>();
+      const apiModeProviderNames: string[] = [];
+
+      for (const ep of exportedProviders) {
+        // Check for existing provider match by name + type + mode
+        const existing = state.providers.find(
+          p => p.name === ep.name && p.providerType === ep.providerType && p.mode === ep.mode
+        );
+        if (existing) {
+          oldToNewProviderMap.set(ep.id, existing.id);
+        } else {
+          // Create new provider
+          const newProvider: AiProvider = {
+            ...ep,
+            id: `provider-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            apiKeyRef: undefined,
+          };
+          dispatch({ type: 'ADD_PROVIDER', provider: newProvider });
+          oldToNewProviderMap.set(ep.id, newProvider.id);
+
+          if (ep.mode === 'api') {
+            apiModeProviderNames.push(ep.name);
+          }
+        }
+      }
+
+      // Remap providerId in AiChat panel settings
+      for (const panel of newWorkspace.layout.panels) {
+        if (panel.settings.providerId && typeof panel.settings.providerId === 'string') {
+          const mapped = oldToNewProviderMap.get(panel.settings.providerId);
+          if (mapped) {
+            panel.settings = { ...panel.settings, providerId: mapped };
+          }
+        }
+      }
+
+      dispatch({ type: 'CREATE_WORKSPACE', workspace: newWorkspace });
+      setStatusMessage({ text: `Imported "${newWorkspace.name}" successfully`, type: 'success' });
+
+      if (apiModeProviderNames.length > 0) {
+        setApiKeyNotice(apiModeProviderNames);
+      }
+
+      // Open folder picker for projectRoot
+      const folder = await pickFolder();
+      if (folder) {
+        dispatch({
+          type: 'UPDATE_WORKSPACE',
+          workspace: { ...newWorkspace, projectRoot: folder },
+        });
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Import failed';
+      setStatusMessage({ text: msg, type: 'error' });
+    }
+  }
+
   const startupCommandsText = editForm
     ? (editForm.onActivate.terminalStartupCommands || []).join('\n')
     : '';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {/* Import button */}
+      <button
+        onClick={handleImport}
+        style={{
+          ...smallButtonStyle,
+          alignSelf: 'flex-start',
+          padding: '6px 14px',
+        }}
+      >
+        Import Workspace
+      </button>
+
+      {/* Status message */}
+      {statusMessage && (
+        <div style={{
+          padding: '8px 12px',
+          borderRadius: 4,
+          fontSize: 'var(--font-size-sm)',
+          fontFamily: 'var(--font-mono)',
+          backgroundColor: statusMessage.type === 'success' ? 'var(--accent-dim)' : 'rgba(255,80,80,0.15)',
+          color: statusMessage.type === 'success' ? 'var(--accent)' : 'var(--status-error)',
+          border: `1px solid ${statusMessage.type === 'success' ? 'var(--accent-border)' : 'var(--status-error)'}`,
+        }}>
+          {statusMessage.text}
+        </div>
+      )}
+
+      {/* API key notice banner */}
+      {apiKeyNotice && (
+        <div style={{
+          padding: '8px 12px',
+          borderRadius: 4,
+          fontSize: 'var(--font-size-sm)',
+          fontFamily: 'var(--font-mono)',
+          backgroundColor: 'rgba(100,160,255,0.12)',
+          color: 'var(--text-secondary)',
+          border: '1px solid rgba(100,160,255,0.3)',
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          gap: '8px',
+        }}>
+          <span>
+            Configure API keys in Settings &gt; Providers for: {apiKeyNotice.join(', ')}
+          </span>
+          <button
+            onClick={() => setApiKeyNotice(null)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--text-faint)',
+              cursor: 'pointer',
+              fontSize: 'var(--font-size-md)',
+              padding: '0 4px',
+            }}
+          >
+            &times;
+          </button>
+        </div>
+      )}
+
       {state.workspaces.map((ws) => (
         <div key={ws.id} style={{
           backgroundColor: 'var(--bg-base)',
@@ -199,7 +347,7 @@ function WorkspacesTab() {
 
               {/* Action buttons */}
               <div style={{ display: 'flex', gap: '8px', justifyContent: 'space-between' }}>
-                <div>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                   {state.workspaces.length > 1 && (
                     confirmDeleteId === ws.id ? (
                       <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
@@ -228,6 +376,12 @@ function WorkspacesTab() {
                       </button>
                     )
                   )}
+                  <button
+                    onClick={() => handleExport(ws)}
+                    style={smallButtonStyle}
+                  >
+                    Export
+                  </button>
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button onClick={cancelEdit} style={smallButtonStyle}>

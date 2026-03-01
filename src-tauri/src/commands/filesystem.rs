@@ -58,3 +58,9 @@ pub async fn read_file(path: String) -> Result<String, String> {
     fs::read_to_string(&path)
         .map_err(|e| format!("Failed to read file '{}': {}", path, e))
 }
+
+#[tauri::command]
+pub async fn write_file(path: String, contents: String) -> Result<(), String> {
+    fs::write(&path, &contents)
+        .map_err(|e| format!("Failed to write file '{}': {}", path, e))
+}

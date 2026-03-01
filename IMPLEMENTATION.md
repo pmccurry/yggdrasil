@@ -67,7 +67,7 @@ Every plan journal entry uses one of these status tags:
 | M17 — Public Release Prep | `[COMPLETED]` | 2026-02-28 | 2026-02-28 |
 | M18 — OS Notifications + Audio | `[COMPLETED]` | 2026-03-01 | 2026-03-01 |
 | M19 — Panel Satellite Windows | `[COMPLETED]` | 2026-03-01 | 2026-03-01 |
-| M20 — Workspace Import/Export | `[PLANNED]` | — | — |
+| M20 — Workspace Import/Export | `[COMPLETED]` | 2026-03-01 | 2026-03-01 |
 | M21 — Git Diff + Branch Management | `[PLANNED]` | — | — |
 
 ---
@@ -2281,7 +2281,27 @@ The import flow must guide the user to select their local equivalent.
 
 ### M20 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### Plan Entry: M20 Workspace Import/Export — 2026-03-01
+**Status:** `[COMPLETED]`
+
+**Plan:**
+1. Phase 1 — Rust Backend: Add `write_file(path, contents)` command to `filesystem.rs`, register in `lib.rs`
+2. Phase 2 — Type Definition: Add `WorkspaceExport` interface to `src/types/workspace.ts`
+3. Phase 3 — Shell Layer: Add `exportWorkspace`, `importWorkspaceFile`, `processImportedWorkspace` to `src/shell/workspace.ts`
+   - Export: find referenced providers, strip apiKeyRef, build export object, save dialog, write_file invoke
+   - Import: open dialog, read_file invoke, JSON parse, validate marker field
+   - Process: generate new UUID, deduplicate name, reset projectRoot and timestamps
+4. Phase 4 — UI: Update `WorkspacesTab.tsx` with Export button (per-workspace), Import button (top-level),
+   full import flow with provider remapping (match by name+type+mode or create new), API key notice banner,
+   auto-dismiss status messages, folder picker after import
+5. Phase 5 — Verification: `cargo check` zero errors, `pnpm tsc -b` zero errors
+
+**Files Modified (5):**
+- `src-tauri/src/commands/filesystem.rs` — added write_file command
+- `src-tauri/src/lib.rs` — registered write_file
+- `src/types/workspace.ts` — added WorkspaceExport interface
+- `src/shell/workspace.ts` — added exportWorkspace, importWorkspaceFile, processImportedWorkspace
+- `src/workspace/Settings/WorkspacesTab.tsx` — added Export/Import buttons, import flow, provider remapping, API key notice
 
 ---
 

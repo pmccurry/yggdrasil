@@ -64,3 +64,12 @@ export interface AppConfig {
   providers:         AiProvider[];
   notifications:     NotificationConfig;
 }
+
+export interface WorkspaceExport {
+  yggdrasilExport: true;
+  schemaVersion:   string;
+  exportedAt:      string;
+  workspace:       Omit<Workspace, 'id'> & {
+    providers?: Omit<AiProvider, 'apiKeyRef'>[];
+  };
+}

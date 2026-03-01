@@ -590,6 +590,39 @@ Fix: Go to repo Settings > Actions > General > Workflow permissions and select
 
 ---
 
+## [PRIVACY] Public repo exposes personal info in git history and docs
+**Date:** 2026-02-28
+**Milestone:** M16 (post-release)
+**Tags:** privacy, git, repository, personal data
+
+**Problem:**
+After making the repo public (D041), audit revealed personal information accessible
+to anyone:
+- Git commit author email (Patrickmccurry11@gmail.com) in all 46+ commits
+- Local file paths (`C:/users/patri/Ratatoskr`) in ARCHITECTURE.md example configs
+- Windows username (`patri`) in IMPLEMENTATION.md
+- GitHub username (`pmccurry`) in multiple docs (inherently public as repo owner)
+
+**Failed Approaches:**
+None — identified proactively via audit before any external exposure.
+
+**Solution:**
+Reverted repo to private (D043). Plan for public release:
+1. Sanitize example paths in docs (replace with `{username}` placeholders)
+2. Set git email to `pmccurry@users.noreply.github.com`
+3. Delete the GitHub repo
+4. Create a fresh public repo with clean commit history
+5. Push sanitized codebase
+
+**Implications:**
+- Always audit for personal info before making a repo public
+- Git commit metadata (author name/email) is the hardest to scrub — easier to
+  start with a noreply email than to rewrite history later
+- Tauri updater won't work while repo is private — acceptable during dev phase
+- Add personal info audit to the public release checklist
+
+---
+
 *End of ERRORS.md*
 *Version 1.0 — Created 2026-02-24*
 *This file only grows. Entries are never deleted.*

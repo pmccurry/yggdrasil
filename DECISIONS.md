@@ -1317,13 +1317,14 @@ Draft releases allow review before publishing.
 
 ---
 
-## D041 — Repository visibility: public
+## D041 — Repository visibility: public → private (reverted)
 **Date:** 2026-02-28
-**Status:** [ACTIVE]
+**Status:** [SUPERSEDED]
 **Made By:** Joint
 
 **Decision:**
 Make the GitHub repository public. Previously private during development.
+**Reverted same day** — see D043.
 
 **Alternatives Considered:**
 - Keep private, host `latest.json` on a separate public endpoint — adds maintenance
@@ -1368,6 +1369,39 @@ Rust caching reduces subsequent builds to ~3-4 min by caching compiled dependenc
 - Release builds only trigger on v* tags
 - Rust cache shared between CI and release workflows
 - First build after cache miss still takes ~15 min
+
+---
+
+## D043 — Repository visibility: private during development, clean repo on public release
+**Date:** 2026-02-28
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Revert the repo to private. Git history contains personal information (email, local
+file paths, Windows username) that would be exposed in a public repo. Keep private
+during development. On public release: delete the GitHub repo, create a fresh one,
+push a clean commit history with sanitized docs and noreply email.
+
+**Supersedes:** D041
+
+**Alternatives Considered:**
+- Rewrite git history now (filter-branch/BFG) — complex, error-prone, and more info
+  will accumulate during continued development. Better to do once at release time. Rejected.
+- Leave public and accept the exposure — personal email and file paths visible to
+  anyone. Unnecessary risk during dev phase. Rejected.
+
+**Rationale:**
+The repo was made public to fix the Tauri updater (D041). The updater was confirmed
+working. Audit revealed personal email in all commits, local file paths in docs, and
+Windows username in example configs. Since no external users depend on the repo yet,
+reverting to private has zero cost. Clean repo at release time is the simplest path.
+
+**Implications:**
+- Updater `check()` will fail while repo is private (latest.json inaccessible) — acceptable
+- CI and release workflows still function (GitHub Actions works on private repos)
+- On public release: sanitize example paths, set git email to noreply, fresh repo push
+- Free GitHub Actions minutes are lower for private repos (2000 min/month vs unlimited)
 
 ---
 

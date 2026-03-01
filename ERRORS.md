@@ -498,6 +498,92 @@ packaging steps succeeded (MSI + NSIS produced), but artifact signing failed eve
 
 ---
 
+## [FIRST-RUN] Welcome screen never appears on clean install
+**Date:** 2026-02-28
+**Milestone:** M16 (post-release)
+**Tags:** first-run, workspace, onboarding
+
+**Problem:**
+Installing Yggdrasil on a clean machine skipped the first-run welcome screen entirely.
+The app loaded directly into a default workspace instead of showing the onboarding flow.
+
+**Failed Approaches:**
+None — root cause was identified immediately from code inspection.
+
+**Solution:**
+`createDefaultConfig()` in `src/shell/workspace.ts` pre-populated a "My Workspace" with
+panels and widgets. The FirstRun check in `App.tsx` (`workspaces.length === 0`) was always
+false because `loadConfig()` called `createDefaultConfig()` on first run, which returned
+a config with one workspace already in it.
+
+Fix: Replace `createDefaultConfig()` call in `loadConfig()` with an inline first-run config
+that has `workspaces: []` and `activeWorkspaceId: ''`. The FirstRun component then renders
+and guides the user through workspace creation.
+
+**Implications:**
+- Default workspace creation should only happen through explicit user action (FirstRun or
+  CreateWorkspaceModal), never automatically in config initialization
+- Any future config migration must preserve empty workspaces array for first-run detection
+- `createDefaultConfig()` still exists and is used elsewhere — it was not removed
+
+---
+
+## [UPDATER] Update check fails on private GitHub repository
+**Date:** 2026-02-28
+**Milestone:** M16 (post-release)
+**Tags:** updater, GitHub, private repo
+
+**Problem:**
+"Check for Updates" in Settings > About always showed "Could not check for updates" on
+the clean test machine. The Tauri updater plugin's `check()` threw an error.
+
+**Failed Approaches:**
+None — root cause was the repo being private.
+
+**Solution:**
+The updater endpoint in `tauri.conf.json` points to
+`https://github.com/pmccurry/yggdrasil/releases/latest/download/latest.json`.
+Private repos return 403/404 for unauthenticated requests. The `check()` call threw,
+was caught, returned `null`, and the UI displayed the error state.
+
+Fix: Made the repository public (D041). The endpoint is now accessible without authentication.
+
+**Implications:**
+- The Tauri updater does not support authenticated GitHub endpoints out of the box
+- If the repo ever goes private again, a custom update server or authenticated proxy
+  would be needed for the updater to work
+- The `check()` error path should log the actual error for debugging, not just swallow it
+
+---
+
+## [CI/CD] GitHub Actions release creation fails after repo visibility change
+**Date:** 2026-02-28
+**Milestone:** M16 (post-release)
+**Tags:** CI/CD, GitHub Actions, permissions
+
+**Problem:**
+After changing the repo from private to public, the release workflow built and signed
+successfully but failed at release creation with: `Resource not accessible by integration`.
+
+**Failed Approaches:**
+None — root cause identified from error message.
+
+**Solution:**
+When a repo changes from private to public, GitHub Actions default workflow permissions
+may reset. The `GITHUB_TOKEN` lacked write access to create releases despite the workflow
+having `permissions: contents: write`.
+
+Fix: Go to repo Settings > Actions > General > Workflow permissions and select
+"Read and write permissions".
+
+**Implications:**
+- Always check GitHub Actions workflow permissions after changing repo visibility
+- The `permissions` block in the workflow YAML is necessary but not sufficient —
+  the repo-level setting must also allow write access
+- This is a one-time fix, not something that needs to be repeated
+
+---
+
 *End of ERRORS.md*
 *Version 1.0 — Created 2026-02-24*
 *This file only grows. Entries are never deleted.*

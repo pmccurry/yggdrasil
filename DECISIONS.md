@@ -1317,6 +1317,60 @@ Draft releases allow review before publishing.
 
 ---
 
+## D041 — Repository visibility: public
+**Date:** 2026-02-28
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Make the GitHub repository public. Previously private during development.
+
+**Alternatives Considered:**
+- Keep private, host `latest.json` on a separate public endpoint — adds maintenance
+  and infrastructure. Rejected.
+- Keep private, use authenticated GitHub API for updater — requires token distribution
+  to end users, defeats purpose. Rejected.
+
+**Rationale:**
+The Tauri updater fetches `latest.json` from GitHub releases. Private repos return
+403/404 for unauthenticated requests, breaking the update check for all users.
+Making the repo public is the simplest fix and aligns with the goal of sharing
+the app with testers.
+
+**Implications:**
+- Source code is publicly visible
+- GitHub releases are publicly downloadable — no access control needed for testers
+- Updater endpoint works without authentication
+- Free GitHub Actions minutes increase (unlimited for public repos)
+
+---
+
+## D042 — CI: separate check workflow + Rust caching
+**Date:** 2026-02-28
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Add a fast CI check workflow (`.github/workflows/ci.yml`) that runs on every push to
+master and on PRs. Add `Swatinem/rust-cache@v2` to both CI and release workflows.
+
+**Alternatives Considered:**
+- Single workflow for everything — 15 min feedback loop on every push. Rejected.
+- sccache — more complex setup, marginal benefit over rust-cache for this project. Rejected.
+
+**Rationale:**
+Release builds take ~15 min due to full Rust compilation. A separate CI workflow
+running `tsc --noEmit + cargo check + pnpm build` provides ~3 min feedback on errors.
+Rust caching reduces subsequent builds to ~3-4 min by caching compiled dependencies.
+
+**Implications:**
+- Every push to master triggers CI check (~3 min)
+- Release builds only trigger on v* tags
+- Rust cache shared between CI and release workflows
+- First build after cache miss still takes ~15 min
+
+---
+
 *End of DECISIONS.md*
 *Version 1.0 — Created 2026-02-24*
 *Entries are never deleted. Superseded entries are marked [SUPERSEDED].*

@@ -1033,6 +1033,9 @@ Yggdrasil/
 │   │   ├── docker.ts
 │   │   ├── http.ts
 │   │   ├── workspace.ts
+│   │   ├── credentials.ts  # V3: Credential Manager invoke wrappers
+│   │   ├── ai.ts           # V3: AI streaming invoke wrappers
+│   │   ├── updater.ts      # V3: Tauri updater check/install wrappers
 │   │   └── claude.ts
 │   │
 │   ├── panels/
@@ -1125,10 +1128,16 @@ Yggdrasil/
 │       ├── cn.ts
 │       └── format.ts
 │
+├── .github/
+│   └── workflows/
+│       ├── ci.yml              # CI check on push/PR (tsc, cargo check, build)
+│       └── release.yml         # Release on v* tag (build, sign, draft release)
+│
 ├── public/
 ├── package.json
 ├── pnpm-lock.yaml
 ├── tsconfig.json
+├── TESTER_GUIDE.md
 └── vite.config.ts
 ```
 

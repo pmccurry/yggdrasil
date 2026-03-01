@@ -1674,15 +1674,15 @@ changes required.
 
 ### Definition of Done
 
-- [ ] Private GitHub repository created for Yggdrasil
-- [ ] All reference files (ARCHITECTURE.md, IMPLEMENTATION.md, ERRORS.md,
+- [x] GitHub repository created for Yggdrasil (public)
+- [x] All reference files (ARCHITECTURE.md, IMPLEMENTATION.md, ERRORS.md,
       DECISIONS.md, CLAUDE.md) committed to repo root
-- [ ] GitHub Actions workflow builds and signs Windows installer on push to main
-- [ ] Build produces both MSI and NSIS installers in release artifacts
-- [ ] Update JSON endpoint (update.json) published to GitHub releases
-- [ ] V3 installer tested on a clean Windows machine (no dev dependencies)
-- [ ] Installation flow is clean — no confusing prompts, no unsigned binary warnings
-- [ ] Tester instructions document written: how to install, how to update,
+- [x] GitHub Actions workflow builds and signs Windows installer on tag push
+- [x] Build produces both MSI and NSIS installers in release artifacts
+- [x] Update JSON endpoint (latest.json) published to GitHub releases
+- [x] V3 installer tested on a clean Windows machine (no dev dependencies)
+- [x] Installation flow is clean — SmartScreen warning documented in TESTER_GUIDE.md
+- [x] Tester instructions document written: how to install, how to update,
       how to report issues, what data Yggdrasil collects (nothing)
 - [ ] At least one tester has successfully installed and used the app
 
@@ -1740,6 +1740,24 @@ collects. Having a clear written answer ready builds trust before they ask.
 **Manual steps (post-commit):** Add repo secrets, bump version, tag v0.1.0, push, verify build, publish release, test on clean machine
 
 **Verification:** Build passed on GitHub Actions, v0.1.0 release published with NSIS + MSI installers, .sig files, and latest.json
+
+#### M16-P2 — Post-Release Bugfixes `[COMPLETED]`
+
+**Session scope:** Fix first-run screen not appearing, fix updater failing on private repo, add CI workflow
+
+**Bugs found during clean-machine testing:**
+1. First-run welcome screen never appeared — `createDefaultConfig()` pre-populated a workspace,
+   so `workspaces.length === 0` was always false. Fixed by returning empty workspaces on first run.
+2. Update check failed — private repo blocked unauthenticated access to `latest.json`.
+   Fixed by making the repository public (D041).
+3. Release creation failed after repo went public — GitHub Actions default permissions changed.
+   Fixed by enabling "Read and write permissions" in repo settings.
+
+**CI improvements:**
+- Added `.github/workflows/ci.yml` — fast check on every push (tsc + cargo check + build, ~3 min)
+- Added `Swatinem/rust-cache@v2` to both workflows — caches Rust deps across builds
+
+**Verification:** CI workflow passes, v0.1.0 release published and installed on clean machine
 
 ---
 

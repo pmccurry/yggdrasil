@@ -1857,27 +1857,22 @@ The version bump to `0.3.0` reflects: V1 (0.1.x) + V2 (0.2.x) + V3 (0.3.0) versi
 
 ### M17 — Plan Journal
 
-#### M17-P1: Public Release Prep [IN PROGRESS]
+#### M17-P1: Public Release Prep [COMPLETED]
 **Date:** 2026-02-28
 **Scope:** Sanitize docs, fix updater endpoint, bump version to 0.3.0, verify build
 
-**Steps completed by Claude Code:**
+**Steps completed:**
 1. Fixed updater endpoint in `src-tauri/tauri.conf.json` — changed from `.git` URL to
    `/releases/latest/download/latest.json` ✓
-2. Sanitized personal username from `IMPLEMENTATION.md` (lines 212, 1778, 1802, 1803)
-   and `ERRORS.md` (line 603) — replaced with `{username}` placeholder ✓
-3. Version bumped to `0.3.0` in all three files: `package.json`,
-   `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` ✓
-4. `cargo check` — updated Cargo.lock, compiled at v0.3.0, zero errors ✓
-5. `pnpm tsc --noEmit` — zero TypeScript errors ✓
-6. Grep confirmed zero `patri` matches across all .md files ✓
-
-**Remaining (user-driven steps):**
-- Set password secret via `gh secret set`
-- Stage all files, commit, push to origin master
-- Tag v0.3.0 and push tags
-- Monitor CI + release workflows
-- Publish draft release
+2. Sanitized personal username from `IMPLEMENTATION.md` and `ERRORS.md` ✓
+3. Version bumped to `0.3.0` in `package.json`, `tauri.conf.json`, `Cargo.toml` ✓
+4. `cargo check` + `pnpm tsc --noEmit` — zero errors ✓
+5. Password secret set via `gh secret set` ✓
+6. Committed, pushed to origin master, CI passed ✓
+7. Tagged v0.3.0, release workflow built and signed successfully ✓
+8. Draft release published ✓
+9. Clean install verified — app installs and runs correctly ✓
+10. Updater verified — "Check for Updates" shows up to date on v0.3.0 ✓
 
 ---
 

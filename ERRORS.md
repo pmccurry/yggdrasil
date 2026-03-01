@@ -677,6 +677,38 @@ dispatches workspace mutations), making providers available.
 
 ---
 
+## [satellite][tauri] Rust-side destroy() does not close satellite WebviewWindows
+**Date:** 2026-03-01
+**Milestone:** M19
+**Tags:** satellite, tauri, windows, user-correction
+
+**Problem:**
+Recalling a satellite panel restored it in the main window but left the satellite
+OS window open. Two instances of the panel existed simultaneously.
+
+**Failed Approaches:**
+- `app.get_webview_window(&label).close()` from Rust — window stayed open
+- `app.get_webview_window(&label).destroy()` from Rust — same result
+- Both methods returned `Ok(())` without error, suggesting `get_webview_window`
+  either returned `None` silently or the close/destroy didn't propagate to the OS window
+
+**Solution:**
+Satellite windows close themselves. On recall, the main window emits a
+`panel:recall-requested:{panelId}` Tauri event. The satellite receives it, sets
+`_skipKill` (for terminal PTY preservation), waits 100ms for React propagation,
+then calls `getCurrentWebviewWindow().destroy()` from within the satellite's own
+JS context. This works reliably because the satellite has direct access to its
+own window handle.
+
+**Implications:**
+- Never rely on Rust-side `get_webview_window().destroy()` to close satellite
+  windows created by `WebviewWindowBuilder` — use JS-side self-close instead
+- The `closeSatelliteWindow` Rust command is kept as fallback for `closeAllOnExit`
+  (app close cleanup) but may need the same self-close pattern if it fails there too
+- Self-close pattern: emit event → satellite sets skipKill → setTimeout → destroy()
+
+---
+
 *End of ERRORS.md*
 *Version 1.0 — Created 2026-02-24*
 *This file only grows. Entries are never deleted.*

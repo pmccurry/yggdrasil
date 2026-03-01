@@ -120,7 +120,9 @@ function App() {
   if (isSatellite) {
     return (
       <AppProvider>
-        <SatelliteShell />
+        <WorkspaceProvider>
+          <SatelliteShell />
+        </WorkspaceProvider>
       </AppProvider>
     );
   }

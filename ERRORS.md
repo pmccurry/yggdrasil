@@ -648,6 +648,35 @@ Removed the unused `useCallback` import.
 
 ---
 
+## [satellite][ai-chat] AiChatPanel black screen in satellite — missing WorkspaceProvider
+**Date:** 2026-03-01
+**Milestone:** M19
+**Tags:** satellite, ai-chat, context, user-correction
+
+**Problem:**
+Popping out an AiChat panel to a satellite window showed a black screen. The panel
+recalled back to the main window correctly. The satellite window rendered nothing.
+
+**Failed Approaches:**
+- Original SatelliteShell wrapped in `AppProvider` only (no `WorkspaceProvider`), per
+  the plan's assumption that satellites don't need workspace state.
+
+**Solution:**
+`AiChatPanel` calls `useWorkspaceContext()` to access `state.providers` (the AI provider
+list). Without `WorkspaceProvider`, this throws and crashes the render tree silently.
+Fix: wrap `SatelliteShell` in both `AppProvider` and `WorkspaceProvider` in `App.tsx`.
+The WorkspaceProvider loads config from disk (read-only in practice — satellite never
+dispatches workspace mutations), making providers available.
+
+**Implications:**
+- Any panel that uses `useWorkspaceContext()` will fail in satellite windows without
+  the provider wrapper — always check for context dependencies when adding satellite support
+- The save effect in WorkspaceProvider is harmless in satellites — it only fires on
+  state changes, and satellites don't dispatch workspace actions
+- Future panels that need workspace state will work automatically with this fix
+
+---
+
 *End of ERRORS.md*
 *Version 1.0 — Created 2026-02-24*
 *This file only grows. Entries are never deleted.*

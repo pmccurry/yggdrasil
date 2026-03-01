@@ -25,7 +25,7 @@ pub async fn close_satellite_window(
     window_label: String,
 ) -> Result<(), String> {
     if let Some(window) = app.get_webview_window(&window_label) {
-        window.close().map_err(|e| format!("Failed to close satellite window: {}", e))?;
+        window.destroy().map_err(|e| format!("Failed to destroy satellite window: {}", e))?;
     }
     Ok(())
 }

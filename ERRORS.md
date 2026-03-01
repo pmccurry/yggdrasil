@@ -623,6 +623,31 @@ Reverted repo to private (D043). Plan for public release:
 
 ---
 
+## [typescript][build] Unused import passes `tsc --noEmit` but fails `tsc -b` (repeat)
+**Date:** 2026-03-01
+**Milestone:** M18
+**Tags:** typescript, build, CI
+
+**Problem:**
+Added `useCallback` to the import in TerminalPanel.tsx but never used it.
+`pnpm tsc --noEmit` passed locally, but CI runs `tsc -b` (via `pnpm build`)
+which caught TS6133: `'useCallback' is declared but its value is never read`.
+This is the same `tsc --noEmit` vs `tsc -b` discrepancy logged for M6.
+
+**Failed Approaches:**
+None — identified from CI logs immediately.
+
+**Solution:**
+Removed the unused `useCallback` import.
+
+**Implications:**
+- **Always run `tsc -b` (not just `tsc --noEmit`) before pushing** — this is the
+  second time this discrepancy has caused a CI failure
+- `tsc -b` uses project references and stricter checking than `tsc --noEmit`
+- Consider adding `tsc -b` to the local verification checklist
+
+---
+
 *End of ERRORS.md*
 *Version 1.0 — Created 2026-02-24*
 *This file only grows. Entries are never deleted.*

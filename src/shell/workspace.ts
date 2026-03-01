@@ -276,8 +276,24 @@ export async function loadConfig(): Promise<AppConfig> {
 }
 
 export async function saveConfig(config: AppConfig): Promise<void> {
+  // Strip _-prefixed runtime-only keys from panel settings before persisting (D046)
+  const cleaned: AppConfig = {
+    ...config,
+    workspaces: config.workspaces.map(ws => ({
+      ...ws,
+      layout: {
+        ...ws.layout,
+        panels: ws.layout.panels.map(p => ({
+          ...p,
+          settings: Object.fromEntries(
+            Object.entries(p.settings).filter(([k]) => !k.startsWith('_')),
+          ),
+        })),
+      },
+    })),
+  };
   const store = await Store.load(STORE_FILE);
-  await store.set(CONFIG_KEY, config);
+  await store.set(CONFIG_KEY, cleaned);
   await store.save();
 }
 

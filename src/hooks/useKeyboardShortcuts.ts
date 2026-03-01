@@ -16,6 +16,8 @@ interface UseKeyboardShortcutsArgs {
     | { type: 'SET_PANEL_FOCUS'; index: number | null }
     | { type: 'OPEN_SETTINGS' }
   >;
+  onSatellitePopOut?: (slotIndex: number) => void;
+  onSatelliteRecallAll?: () => void;
 }
 
 export function buildKeyString(e: KeyboardEvent): string {
@@ -44,6 +46,8 @@ export function useKeyboardShortcuts({
   activeWorkspace,
   workspaceDispatch,
   appDispatch,
+  onSatellitePopOut,
+  onSatelliteRecallAll,
 }: UseKeyboardShortcutsArgs) {
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -82,6 +86,19 @@ export function useKeyboardShortcuts({
         return;
       }
 
+      // panel.satellite.N — pop out panel to satellite window
+      if (action.startsWith('panel.satellite.') && onSatellitePopOut) {
+        const n = parseInt(action.split('.')[2], 10);
+        onSatellitePopOut(n);
+        return;
+      }
+
+      // panel.recall.all — recall all satellite windows
+      if (action === 'panel.recall.all' && onSatelliteRecallAll) {
+        onSatelliteRecallAll();
+        return;
+      }
+
       // drawer.toggle — per-workspace via WorkspaceContext
       if (action === 'drawer.toggle' && activeWorkspace) {
         workspaceDispatch({
@@ -102,5 +119,5 @@ export function useKeyboardShortcuts({
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [shortcuts, workspaces, activeWorkspace, workspaceDispatch, appDispatch]);
+  }, [shortcuts, workspaces, activeWorkspace, workspaceDispatch, appDispatch, onSatellitePopOut, onSatelliteRecallAll]);
 }

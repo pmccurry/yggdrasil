@@ -167,3 +167,15 @@ pub async fn kill_shell(
 
     Ok(())
 }
+
+#[tauri::command]
+pub async fn pty_exists(
+    state: State<'_, PtyStore>,
+    pty_id: String,
+) -> Result<bool, String> {
+    let store = state
+        .inner
+        .lock()
+        .map_err(|e| format!("Lock error: {}", e))?;
+    Ok(store.contains_key(&pty_id))
+}

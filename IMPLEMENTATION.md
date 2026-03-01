@@ -66,7 +66,7 @@ Every plan journal entry uses one of these status tags:
 | **— V4 —** | | | |
 | M17 — Public Release Prep | `[COMPLETED]` | 2026-02-28 | 2026-02-28 |
 | M18 — OS Notifications + Audio | `[COMPLETED]` | 2026-03-01 | 2026-03-01 |
-| M19 — Panel Satellite Windows | `[PLANNED]` | — | — |
+| M19 — Panel Satellite Windows | `[COMPLETED]` | 2026-03-01 | 2026-03-01 |
 | M20 — Workspace Import/Export | `[PLANNED]` | — | — |
 | M21 — Git Diff + Branch Management | `[PLANNED]` | — | — |
 
@@ -2179,7 +2179,30 @@ satellite and not magically in the placeholder.
 
 ### M19 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### Plan Entry: M19 Panel Satellite Windows — 2026-03-01
+**Status:** `[COMPLETED]`
+
+**Phases:**
+1. Rust Backend — satellite.rs (3 commands), pty_exists in shell.rs, register in lib.rs, capabilities update
+2. Types + Shell Wrappers — src/shell/satellite.ts, ptyExists wrapper, SatelliteWindowInfo type, shortcut actions
+3. State Management — satellitePanels in WorkspaceContext (runtime-only), saveConfig _ stripping
+4. useSatellitePanel Hook — popOut, recall, recallAll, closeAllOnExit coordinator
+5. TerminalPanel PTY Lifecycle — expose _ptyId, reconnect existing PTY, skipKill for satellite
+6. UI Components — PanelContainer pop-out button, SatellitePlaceholder, LayoutGrid wiring
+7. SatelliteShell + App.tsx — satellite window render tree, URL param detection
+8. Keyboard Shortcuts + Events — shortcut handlers, app close cleanup, recall event wiring
+9. Final Verification — tsc -b, cargo check zero errors
+
+**Architecture Decisions Referenced:** D044, D045, D046, D047
+
+**Completion Notes (2026-03-01):**
+- All 9 phases implemented successfully
+- 5 new files created, ~11 files modified as planned
+- `tsc -b` and `cargo check` both pass with zero errors
+- Satellite shortcuts disabled by default (no keys assigned) per plan — power-user feature
+- `saveConfig()` strips `_`-prefixed keys from panel settings (D046)
+- `satellitePanels` runtime-only state excluded from save effect (D045)
+- SatelliteShell wraps in AppProvider only (no WorkspaceProvider) — loads config independently
 
 ---
 

@@ -4,6 +4,7 @@ import type { PanelProps } from '../types/panels';
 import { PANEL_REGISTRY } from './registry';
 import PanelSkeleton from './PanelSkeleton';
 import PanelPicker from './PanelPicker';
+import SatellitePlaceholder from './SatellitePlaceholder';
 
 interface PanelContainerProps {
   panelType: PanelType;
@@ -12,9 +13,12 @@ interface PanelContainerProps {
   onRemovePanel?: () => void;
   canRemove?: boolean;
   isFocused?: boolean;
+  isSatellite?: boolean;
+  onPopOut?: () => void;
+  onRecall?: () => void;
 }
 
-function PanelContainer({ panelType, panelProps, onSwapPanel, onRemovePanel, canRemove, isFocused }: PanelContainerProps) {
+function PanelContainer({ panelType, panelProps, onSwapPanel, onRemovePanel, canRemove, isFocused, isSatellite, onPopOut, onRecall }: PanelContainerProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [showFocus, setShowFocus] = useState(false);
   const [headerHover, setHeaderHover] = useState(false);
@@ -81,6 +85,35 @@ function PanelContainer({ panelType, panelProps, onSwapPanel, onRemovePanel, can
           <span>{entry.label}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+          {/* Pop-out button — visible on hover, hidden when already satellite */}
+          {onPopOut && !isSatellite && (
+            <button
+              onClick={onPopOut}
+              title="Pop out to satellite window"
+              style={{
+                background: 'none',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: '3px',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                fontFamily: 'var(--font-mono)',
+                fontSize: 'var(--font-size-xs)',
+                padding: '2px 6px',
+                transition: 'color 0.15s, border-color 0.15s, opacity 0.15s',
+                opacity: headerHover ? 1 : 0,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.color = 'var(--accent)';
+                e.currentTarget.style.borderColor = 'var(--accent-border)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.color = 'var(--text-muted)';
+                e.currentTarget.style.borderColor = 'var(--border-subtle)';
+              }}
+            >
+              ↗
+            </button>
+          )}
           <button
             onClick={openPicker}
             title="Change panel type"
@@ -139,9 +172,13 @@ function PanelContainer({ panelType, panelProps, onSwapPanel, onRemovePanel, can
 
       {/* Panel Content */}
       <div style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
-        <Suspense fallback={<PanelSkeleton />}>
-          <PanelComponent {...panelProps} />
-        </Suspense>
+        {isSatellite && onRecall ? (
+          <SatellitePlaceholder panelType={panelType} onRecall={onRecall} />
+        ) : (
+          <Suspense fallback={<PanelSkeleton />}>
+            <PanelComponent {...panelProps} />
+          </Suspense>
+        )}
 
         {pickerOpen && (
           <PanelPicker

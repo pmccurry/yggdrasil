@@ -1,6 +1,6 @@
 import { createContext, useContext, useReducer, useEffect, useRef, type ReactNode } from 'react';
 import { PanelType } from '../types/panels';
-import type { PanelSettings, AiProvider } from '../types/panels';
+import type { PanelSettings, AiProvider, SatelliteWindowInfo } from '../types/panels';
 import type { Workspace, AppConfig, LayoutPreset, PlanningDrawerContent, AppearanceSettings } from '../types/workspace';
 import type { NotificationConfig } from '../types/widgets';
 import type { KeyboardShortcut } from '../types/shortcuts';
@@ -18,6 +18,7 @@ interface WorkspaceState {
   appearance: AppearanceSettings;
   providers: AiProvider[];
   notifications: NotificationConfig;
+  satellitePanels: Record<string, SatelliteWindowInfo>;
 }
 
 // --- Actions ---
@@ -42,7 +43,9 @@ type WorkspaceAction =
   | { type: 'ADD_PROVIDER'; provider: AiProvider }
   | { type: 'UPDATE_PROVIDER'; provider: AiProvider }
   | { type: 'DELETE_PROVIDER'; providerId: string }
-  | { type: 'UPDATE_NOTIFICATIONS'; notifications: NotificationConfig };
+  | { type: 'UPDATE_NOTIFICATIONS'; notifications: NotificationConfig }
+  | { type: 'SATELLITE_OPEN'; panelId: string; info: SatelliteWindowInfo }
+  | { type: 'SATELLITE_CLOSE'; panelId: string };
 
 // --- Reducer ---
 
@@ -61,6 +64,7 @@ function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): Works
         appearance: action.config.appearance,
         providers: action.config.providers,
         notifications: action.config.notifications,
+        satellitePanels: {},
       };
     }
     case 'SWITCH_WORKSPACE': {
@@ -232,6 +236,12 @@ function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): Works
       };
     case 'UPDATE_NOTIFICATIONS':
       return { ...state, notifications: action.notifications };
+    case 'SATELLITE_OPEN':
+      return { ...state, satellitePanels: { ...state.satellitePanels, [action.panelId]: action.info } };
+    case 'SATELLITE_CLOSE': {
+      const { [action.panelId]: _, ...rest } = state.satellitePanels;
+      return { ...state, satellitePanels: rest };
+    }
     default:
       return state;
   }
@@ -256,6 +266,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     appearance: { terminalFontSize: 14, editorFontSize: 14 },
     providers: [],
     notifications: defaultNotifications(),
+    satellitePanels: {},
   });
 
   const initialLoadDone = useRef(false);

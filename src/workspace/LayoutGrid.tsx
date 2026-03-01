@@ -1,11 +1,13 @@
 import { useRef, Fragment, type ReactNode } from 'react';
 import { useWorkspaceContext } from '../store/WorkspaceContext';
 import { useAppContext } from '../store/AppContext';
+import { useSatellitePanel } from '../hooks/useSatellitePanel';
 import PanelContainer from '../panels/PanelContainer';
 import DragHandle from './DragHandle';
 import PanelAddButton from './PanelAddButton';
 import { useVerticalDrag, useHorizontalDrag } from '../hooks/useLayoutDrag';
 import type { PanelSettings } from '../types/panels';
+import type { SatelliteWindowInfo } from '../types/panels';
 import type { PanelSlot, Workspace } from '../types/workspace';
 
 // Panel slot enriched with its global index in the panels array
@@ -16,8 +18,9 @@ interface IndexedPanel extends PanelSlot {
 // ─── LayoutGrid ──────────────────────────────────────────────────────────────
 
 function LayoutGrid() {
-  const { activeWorkspace, dispatch } = useWorkspaceContext();
+  const { activeWorkspace, state, dispatch } = useWorkspaceContext();
   const { state: appState } = useAppContext();
+  const { popOut, recall } = useSatellitePanel();
 
   if (!activeWorkspace) {
     return (
@@ -51,6 +54,9 @@ function LayoutGrid() {
         workspace={activeWorkspace}
         dispatch={dispatch}
         focusedIndex={appState.focusedPanelIndex}
+        satellitePanels={state.satellitePanels}
+        onPopOut={popOut}
+        onRecall={recall}
         style={{ width: '100%', height: '100%' }}
       >
         {showAddButton && (
@@ -72,6 +78,9 @@ function LayoutGrid() {
         dispatch={dispatch}
         focusedIndex={appState.focusedPanelIndex}
         showAddButton={showAddButton}
+        satellitePanels={state.satellitePanels}
+        onPopOut={popOut}
+        onRecall={recall}
       />
     );
   }
@@ -87,6 +96,9 @@ function LayoutGrid() {
       dispatch={dispatch}
       focusedIndex={appState.focusedPanelIndex}
       showAddButton={showAddButton}
+      satellitePanels={state.satellitePanels}
+      onPopOut={popOut}
+      onRecall={recall}
     />
   );
 }
@@ -101,6 +113,9 @@ function PanelRow({
   workspace,
   dispatch,
   focusedIndex,
+  satellitePanels,
+  onPopOut,
+  onRecall,
   flex,
   style,
   children,
@@ -115,6 +130,9 @@ function PanelRow({
     | { type: 'UPDATE_PANEL_SIZE_WEIGHT'; slotIndex: number; sizeWeight: number }
   >;
   focusedIndex: number | null;
+  satellitePanels: Record<string, SatelliteWindowInfo>;
+  onPopOut: (slotIndex: number) => void;
+  onRecall: (panelId: string) => void;
   flex?: number;
   style?: React.CSSProperties;
   children?: ReactNode;
@@ -133,40 +151,47 @@ function PanelRow({
         ...style,
       }}
     >
-      {rowPanels.map((panel, i) => (
-        <Fragment key={`${workspace.id}-${panel.id}`}>
-          {i > 0 && (
-            <VerticalDragBetween
-              containerRef={rowRef}
-              leftIndex={rowPanels[i - 1].globalIndex}
-              rightIndex={panel.globalIndex}
-              panels={allPanels}
-              totalWeight={totalWeight}
-              dispatch={dispatch}
-            />
-          )}
-          <div style={{ flex: panel.sizeWeight, overflow: 'hidden', display: 'flex' }}>
-            <PanelContainer
-              panelType={panel.type}
-              isFocused={focusedIndex === panel.globalIndex}
-              canRemove={allPanels.length > 1}
-              onRemovePanel={() => dispatch({ type: 'REMOVE_PANEL', slotIndex: panel.globalIndex })}
-              panelProps={{
-                panelId: `${workspace.id}-${panel.id}`,
-                settings: panel.settings,
-                projectRoot: workspace.projectRoot,
-                accentColor: workspace.accentColor,
-                onSettingsChange: (settings: PanelSettings) => {
-                  dispatch({ type: 'UPDATE_PANEL_SETTINGS', slotIndex: panel.globalIndex, settings });
-                },
-              }}
-              onSwapPanel={(newType) => {
-                dispatch({ type: 'UPDATE_PANEL_TYPE', slotIndex: panel.globalIndex, panelType: newType });
-              }}
-            />
-          </div>
-        </Fragment>
-      ))}
+      {rowPanels.map((panel, i) => {
+        const panelId = `${workspace.id}-${panel.id}`;
+        const isSat = !!satellitePanels[panelId];
+        return (
+          <Fragment key={`${workspace.id}-${panel.id}`}>
+            {i > 0 && (
+              <VerticalDragBetween
+                containerRef={rowRef}
+                leftIndex={rowPanels[i - 1].globalIndex}
+                rightIndex={panel.globalIndex}
+                panels={allPanels}
+                totalWeight={totalWeight}
+                dispatch={dispatch}
+              />
+            )}
+            <div style={{ flex: panel.sizeWeight, overflow: 'hidden', display: 'flex' }}>
+              <PanelContainer
+                panelType={panel.type}
+                isFocused={focusedIndex === panel.globalIndex}
+                canRemove={allPanels.length > 1}
+                onRemovePanel={() => dispatch({ type: 'REMOVE_PANEL', slotIndex: panel.globalIndex })}
+                isSatellite={isSat}
+                onPopOut={() => onPopOut(panel.globalIndex)}
+                onRecall={() => onRecall(panelId)}
+                panelProps={{
+                  panelId,
+                  settings: panel.settings,
+                  projectRoot: workspace.projectRoot,
+                  accentColor: workspace.accentColor,
+                  onSettingsChange: (settings: PanelSettings) => {
+                    dispatch({ type: 'UPDATE_PANEL_SETTINGS', slotIndex: panel.globalIndex, settings });
+                  },
+                }}
+                onSwapPanel={(newType) => {
+                  dispatch({ type: 'UPDATE_PANEL_TYPE', slotIndex: panel.globalIndex, panelType: newType });
+                }}
+              />
+            </div>
+          </Fragment>
+        );
+      })}
       {children}
     </div>
   );
@@ -185,6 +210,9 @@ function TwoRowLayout({
   dispatch,
   focusedIndex,
   showAddButton,
+  satellitePanels,
+  onPopOut,
+  onRecall,
 }: {
   panels: PanelSlot[];
   row0: IndexedPanel[];
@@ -194,6 +222,9 @@ function TwoRowLayout({
   dispatch: React.Dispatch<any>;
   focusedIndex: number | null;
   showAddButton: boolean;
+  satellitePanels: Record<string, SatelliteWindowInfo>;
+  onPopOut: (slotIndex: number) => void;
+  onRecall: (panelId: string) => void;
 }) {
   const outerRef = useRef<HTMLDivElement>(null);
 
@@ -215,6 +246,9 @@ function TwoRowLayout({
         workspace={workspace}
         dispatch={dispatch}
         focusedIndex={focusedIndex}
+        satellitePanels={satellitePanels}
+        onPopOut={onPopOut}
+        onRecall={onRecall}
         flex={rowWeight}
       />
       <HorizontalDragBetween
@@ -228,6 +262,9 @@ function TwoRowLayout({
         workspace={workspace}
         dispatch={dispatch}
         focusedIndex={focusedIndex}
+        satellitePanels={satellitePanels}
+        onPopOut={onPopOut}
+        onRecall={onRecall}
         flex={1}
       >
         {showAddButton && (
@@ -251,6 +288,9 @@ function SpanningLayout({
   dispatch,
   focusedIndex,
   showAddButton,
+  satellitePanels,
+  onPopOut,
+  onRecall,
 }: {
   panels: PanelSlot[];
   row0: IndexedPanel[];
@@ -260,6 +300,9 @@ function SpanningLayout({
   dispatch: React.Dispatch<any>;
   focusedIndex: number | null;
   showAddButton: boolean;
+  satellitePanels: Record<string, SatelliteWindowInfo>;
+  onPopOut: (slotIndex: number) => void;
+  onRecall: (panelId: string) => void;
 }) {
   const outerRef = useRef<HTMLDivElement>(null);
   const rightColRef = useRef<HTMLDivElement>(null);
@@ -279,6 +322,9 @@ function SpanningLayout({
     ? rightTopPanels[0].globalIndex
     : rightBottomPanels[0]?.globalIndex ?? 0;
 
+  const spanningPanelId = `${workspace.id}-${spanningPanel.id}`;
+  const isSpanningSat = !!satellitePanels[spanningPanelId];
+
   return (
     <div
       ref={outerRef}
@@ -297,8 +343,11 @@ function SpanningLayout({
           isFocused={focusedIndex === spanningPanel.globalIndex}
           canRemove={panels.length > 1}
           onRemovePanel={() => dispatch({ type: 'REMOVE_PANEL', slotIndex: spanningPanel.globalIndex })}
+          isSatellite={isSpanningSat}
+          onPopOut={() => onPopOut(spanningPanel.globalIndex)}
+          onRecall={() => onRecall(spanningPanelId)}
           panelProps={{
-            panelId: `${workspace.id}-${spanningPanel.id}`,
+            panelId: spanningPanelId,
             settings: spanningPanel.settings,
             projectRoot: workspace.projectRoot,
             accentColor: workspace.accentColor,
@@ -332,28 +381,35 @@ function SpanningLayout({
           overflow: 'hidden',
         }}
       >
-        {rightTopPanels.map((panel) => (
-          <div key={`${workspace.id}-${panel.id}`} style={{ flex: rowWeight, overflow: 'hidden', display: 'flex' }}>
-            <PanelContainer
-              panelType={panel.type}
-              isFocused={focusedIndex === panel.globalIndex}
-              canRemove={panels.length > 1}
-              onRemovePanel={() => dispatch({ type: 'REMOVE_PANEL', slotIndex: panel.globalIndex })}
-              panelProps={{
-                panelId: `${workspace.id}-${panel.id}`,
-                settings: panel.settings,
-                projectRoot: workspace.projectRoot,
-                accentColor: workspace.accentColor,
-                onSettingsChange: (settings: PanelSettings) => {
-                  dispatch({ type: 'UPDATE_PANEL_SETTINGS', slotIndex: panel.globalIndex, settings });
-                },
-              }}
-              onSwapPanel={(newType) => {
-                dispatch({ type: 'UPDATE_PANEL_TYPE', slotIndex: panel.globalIndex, panelType: newType });
-              }}
-            />
-          </div>
-        ))}
+        {rightTopPanels.map((panel) => {
+          const pid = `${workspace.id}-${panel.id}`;
+          const isSat = !!satellitePanels[pid];
+          return (
+            <div key={`${workspace.id}-${panel.id}`} style={{ flex: rowWeight, overflow: 'hidden', display: 'flex' }}>
+              <PanelContainer
+                panelType={panel.type}
+                isFocused={focusedIndex === panel.globalIndex}
+                canRemove={panels.length > 1}
+                onRemovePanel={() => dispatch({ type: 'REMOVE_PANEL', slotIndex: panel.globalIndex })}
+                isSatellite={isSat}
+                onPopOut={() => onPopOut(panel.globalIndex)}
+                onRecall={() => onRecall(pid)}
+                panelProps={{
+                  panelId: pid,
+                  settings: panel.settings,
+                  projectRoot: workspace.projectRoot,
+                  accentColor: workspace.accentColor,
+                  onSettingsChange: (settings: PanelSettings) => {
+                    dispatch({ type: 'UPDATE_PANEL_SETTINGS', slotIndex: panel.globalIndex, settings });
+                  },
+                }}
+                onSwapPanel={(newType) => {
+                  dispatch({ type: 'UPDATE_PANEL_TYPE', slotIndex: panel.globalIndex, panelType: newType });
+                }}
+              />
+            </div>
+          );
+        })}
 
         {rightTopPanels.length > 0 && rightBottomPanels.length > 0 && (
           <HorizontalDragBetween
@@ -363,28 +419,35 @@ function SpanningLayout({
           />
         )}
 
-        {rightBottomPanels.map((panel) => (
-          <div key={`${workspace.id}-${panel.id}`} style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
-            <PanelContainer
-              panelType={panel.type}
-              isFocused={focusedIndex === panel.globalIndex}
-              canRemove={panels.length > 1}
-              onRemovePanel={() => dispatch({ type: 'REMOVE_PANEL', slotIndex: panel.globalIndex })}
-              panelProps={{
-                panelId: `${workspace.id}-${panel.id}`,
-                settings: panel.settings,
-                projectRoot: workspace.projectRoot,
-                accentColor: workspace.accentColor,
-                onSettingsChange: (settings: PanelSettings) => {
-                  dispatch({ type: 'UPDATE_PANEL_SETTINGS', slotIndex: panel.globalIndex, settings });
-                },
-              }}
-              onSwapPanel={(newType) => {
-                dispatch({ type: 'UPDATE_PANEL_TYPE', slotIndex: panel.globalIndex, panelType: newType });
-              }}
-            />
-          </div>
-        ))}
+        {rightBottomPanels.map((panel) => {
+          const pid = `${workspace.id}-${panel.id}`;
+          const isSat = !!satellitePanels[pid];
+          return (
+            <div key={`${workspace.id}-${panel.id}`} style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
+              <PanelContainer
+                panelType={panel.type}
+                isFocused={focusedIndex === panel.globalIndex}
+                canRemove={panels.length > 1}
+                onRemovePanel={() => dispatch({ type: 'REMOVE_PANEL', slotIndex: panel.globalIndex })}
+                isSatellite={isSat}
+                onPopOut={() => onPopOut(panel.globalIndex)}
+                onRecall={() => onRecall(pid)}
+                panelProps={{
+                  panelId: pid,
+                  settings: panel.settings,
+                  projectRoot: workspace.projectRoot,
+                  accentColor: workspace.accentColor,
+                  onSettingsChange: (settings: PanelSettings) => {
+                    dispatch({ type: 'UPDATE_PANEL_SETTINGS', slotIndex: panel.globalIndex, settings });
+                  },
+                }}
+                onSwapPanel={(newType) => {
+                  dispatch({ type: 'UPDATE_PANEL_TYPE', slotIndex: panel.globalIndex, panelType: newType });
+                }}
+              />
+            </div>
+          );
+        })}
       </div>
 
       {showAddButton && (

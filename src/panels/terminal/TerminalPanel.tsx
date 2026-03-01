@@ -9,6 +9,7 @@ import {
   resizeShell,
   killShell,
   onShellOutput,
+  ptyExists,
 } from '../../shell/terminal';
 import type { PanelProps, TerminalSettings } from '../../types/panels';
 import { emitNotification } from '../../utils/notify';
@@ -18,12 +19,18 @@ const PROMPT_REGEX = /(?:PS [A-Z]:\\[^>]*>|[A-Z]:\\[^>]*>)\s*$/;
 const ANSI_REGEX = /\x1b\[[0-9;]*[a-zA-Z]/g;
 const MIN_COMMAND_DURATION_MS = 3000;
 
-function TerminalPanel({ panelId, settings, projectRoot }: PanelProps) {
+function TerminalPanel({ panelId, settings, projectRoot, onSettingsChange }: PanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
   const busyRef = useRef(false);
   const busySinceRef = useRef(0);
   const initialPromptSeenRef = useRef(false);
+  const skipKillRef = useRef(false);
+
+  // Sync skipKillRef from settings._skipKill
+  useEffect(() => {
+    skipKillRef.current = !!(settings as Record<string, unknown>)._skipKill;
+  }, [(settings as Record<string, unknown>)._skipKill]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -32,6 +39,7 @@ function TerminalPanel({ panelId, settings, projectRoot }: PanelProps) {
     const termSettings = settings as TerminalSettings;
     const cwd = termSettings.cwd || projectRoot;
     const shell = termSettings.shell || 'powershell.exe';
+    const existingPtyId = (settings as Record<string, unknown>)._ptyId as string | undefined;
 
     // Read theme from CSS custom properties
     const rootStyles = getComputedStyle(document.documentElement);
@@ -59,15 +67,32 @@ function TerminalPanel({ panelId, settings, projectRoot }: PanelProps) {
     let unlistenFn: (() => void) | null = null;
     let disposed = false;
 
-    // Spawn shell and wire I/O
+    // Spawn or reconnect shell
     (async () => {
       try {
-        ptyId = await spawnShell(cwd, shell);
+        let isReconnect = false;
+
+        if (existingPtyId) {
+          // Try to reconnect to existing PTY
+          const alive = await ptyExists(existingPtyId);
+          if (alive) {
+            ptyId = existingPtyId;
+            isReconnect = true;
+          }
+        }
+
+        if (!ptyId) {
+          // Spawn fresh PTY
+          ptyId = await spawnShell(cwd, shell);
+        }
 
         if (disposed) {
-          await killShell(ptyId);
+          if (!isReconnect) await killShell(ptyId);
           return;
         }
+
+        // Expose ptyId upward via onSettingsChange (D046)
+        onSettingsChange({ ...settings, _ptyId: ptyId });
 
         // PTY output → xterm display + prompt detection
         const unlisten = await onShellOutput(ptyId, (data) => {
@@ -109,10 +134,12 @@ function TerminalPanel({ panelId, settings, projectRoot }: PanelProps) {
           await resizeShell(ptyId, dims.cols, dims.rows);
         }
 
-        // Execute workspace startup commands
-        const startupCommands = termSettings.startupCommands || [];
-        for (const cmd of startupCommands) {
-          await writeToShell(ptyId, cmd + '\r');
+        // Execute workspace startup commands only on fresh spawn, not reconnect
+        if (!isReconnect) {
+          const startupCommands = termSettings.startupCommands || [];
+          for (const cmd of startupCommands) {
+            await writeToShell(ptyId, cmd + '\r');
+          }
         }
       } catch (err) {
         if (!disposed) {
@@ -131,12 +158,12 @@ function TerminalPanel({ panelId, settings, projectRoot }: PanelProps) {
     });
     resizeObserver.observe(container);
 
-    // Cleanup: kill shell, dispose xterm, disconnect observer
+    // Cleanup: kill shell (unless skipKill), dispose xterm, disconnect observer
     return () => {
       disposed = true;
       resizeObserver.disconnect();
       if (unlistenFn) unlistenFn();
-      if (ptyId) killShell(ptyId);
+      if (ptyId && !skipKillRef.current) killShell(ptyId);
       term.dispose();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps

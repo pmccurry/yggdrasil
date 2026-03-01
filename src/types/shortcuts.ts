@@ -11,6 +11,11 @@ export type ShortcutAction =
   | 'panel.focus.1'
   | 'panel.focus.2'
   | 'panel.focus.3'
+  | 'panel.satellite.0'
+  | 'panel.satellite.1'
+  | 'panel.satellite.2'
+  | 'panel.satellite.3'
+  | 'panel.recall.all'
   | 'drawer.toggle'
   | 'layout.preset.cycle'
   | 'settings.open';
@@ -34,4 +39,9 @@ export const DEFAULT_SHORTCUTS: KeyboardShortcut[] = [
   { action: 'drawer.toggle',      keys: 'ctrl+.',  enabled: true },
   { action: 'layout.preset.cycle',keys: 'ctrl+shift+l', enabled: true },
   { action: 'settings.open',     keys: 'ctrl+,',       enabled: true },
+  { action: 'panel.satellite.0', keys: '',             enabled: false },
+  { action: 'panel.satellite.1', keys: '',             enabled: false },
+  { action: 'panel.satellite.2', keys: '',             enabled: false },
+  { action: 'panel.satellite.3', keys: '',             enabled: false },
+  { action: 'panel.recall.all',  keys: '',             enabled: false },
 ];

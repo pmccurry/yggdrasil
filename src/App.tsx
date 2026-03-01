@@ -2,19 +2,24 @@ import { useEffect } from 'react';
 import { WorkspaceProvider, useWorkspaceContext } from './store/WorkspaceContext';
 import { AppProvider, useAppContext } from './store/AppContext';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useSatellitePanel } from './hooks/useSatellitePanel';
 import { useNotifications } from './hooks/useNotifications';
 import { checkForUpdate } from './shell/updater';
 import { emitNotification } from './utils/notify';
+import { listen } from '@tauri-apps/api/event';
+import { getCurrentWebviewWindow } from '@tauri-apps/api/webviewWindow';
 import Sidebar from './workspace/Sidebar';
 import StatusBar from './workspace/StatusBar';
 import LayoutGrid from './workspace/LayoutGrid';
 import PlanningDrawer from './workspace/PlanningDrawer';
 import SettingsModal from './workspace/Settings/SettingsModal';
 import FirstRun from './workspace/FirstRun';
+import SatelliteShell from './panels/SatelliteShell';
 
 function AppShell() {
   const { state: wsState, dispatch: wsDispatch, activeWorkspace } = useWorkspaceContext();
   const { state: appState, dispatch: appDispatch } = useAppContext();
+  const { popOut, recall, recallAll, closeAllOnExit } = useSatellitePanel();
 
   useKeyboardShortcuts({
     shortcuts: wsState.shortcuts,
@@ -22,6 +27,8 @@ function AppShell() {
     activeWorkspace,
     workspaceDispatch: wsDispatch,
     appDispatch,
+    onSatellitePopOut: popOut,
+    onSatelliteRecallAll: recallAll,
   });
 
   useNotifications({ config: wsState.notifications });
@@ -40,6 +47,35 @@ function AppShell() {
       }
     });
   }, [appDispatch]);
+
+  // Listen for recall requests from satellite windows
+  useEffect(() => {
+    const unlisteners: (() => void)[] = [];
+
+    // Dynamic listener: watch for recall events from any satellite
+    // We subscribe to a general pattern — satellites emit panel:recall-requested:{panelId}
+    const satellitePanelIds = Object.keys(wsState.satellitePanels);
+    for (const panelId of satellitePanelIds) {
+      listen(`panel:recall-requested:${panelId}`, () => {
+        recall(panelId);
+      }).then(fn => unlisteners.push(fn));
+    }
+
+    return () => {
+      for (const fn of unlisteners) fn();
+    };
+  }, [wsState.satellitePanels, recall]);
+
+  // Close all satellite windows when main app closes
+  useEffect(() => {
+    let unlisten: (() => void) | undefined;
+    const appWindow = getCurrentWebviewWindow();
+    appWindow.onCloseRequested(async () => {
+      await closeAllOnExit();
+    }).then(fn => { unlisten = fn; });
+
+    return () => { if (unlisten) unlisten(); };
+  }, [closeAllOnExit]);
 
   if (wsState.loading) return null;
   if (wsState.workspaces.length === 0) return <FirstRun />;
@@ -77,6 +113,18 @@ function AppShell() {
 }
 
 function App() {
+  // Detect satellite mode from URL params
+  const params = new URLSearchParams(window.location.search);
+  const isSatellite = params.get('satellite') === 'true';
+
+  if (isSatellite) {
+    return (
+      <AppProvider>
+        <SatelliteShell />
+      </AppProvider>
+    );
+  }
+
   return (
     <AppProvider>
       <WorkspaceProvider>

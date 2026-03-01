@@ -25,3 +25,7 @@ export async function onShellOutput(
     callback(event.payload);
   });
 }
+
+export async function ptyExists(ptyId: string): Promise<boolean> {
+  return invoke<boolean>('pty_exists', { ptyId });
+}

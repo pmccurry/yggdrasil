@@ -35,6 +35,10 @@ pub fn run() {
             commands::ai::ai_chat_stream,
             commands::notification::request_notification_permission,
             commands::notification::send_os_notification,
+            commands::shell::pty_exists,
+            commands::satellite::open_satellite_window,
+            commands::satellite::close_satellite_window,
+            commands::satellite::get_open_satellite_windows,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

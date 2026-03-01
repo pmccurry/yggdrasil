@@ -7,3 +7,4 @@ pub mod http;
 pub mod credentials;
 pub mod ai;
 pub mod notification;
+pub mod satellite;

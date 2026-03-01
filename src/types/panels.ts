@@ -76,6 +76,15 @@ export interface AiChatPanelSettings extends PanelSettings {
   providerId: string;
 }
 
+export interface SatelliteWindowInfo {
+  windowLabel:  string;
+  panelId:      string;
+  panelType:    PanelType;
+  slotIndex:    number;
+  workspaceId:  string;
+  ptyId?:       string;
+}
+
 export interface PanelProps {
   panelId:          string;
   settings:         PanelSettings;

@@ -135,6 +135,17 @@ export async function loadConfig(): Promise<AppConfig> {
   if (config) {
     let migrated = false;
 
+    // Migrate: remove auto-populated default workspace from v0.1.0
+    // The first-run screen requires workspaces.length === 0, but v0.1.0
+    // pre-populated a "My Workspace" with empty projectRoot on first launch.
+    if (config.workspaces.length === 1
+        && config.workspaces[0].name === 'My Workspace'
+        && config.workspaces[0].projectRoot === '') {
+      config.workspaces = [];
+      config.activeWorkspaceId = '';
+      migrated = true;
+    }
+
     // Migrate: add shortcuts to AppConfig if missing
     if (!config.shortcuts) {
       config.shortcuts = DEFAULT_SHORTCUTS;

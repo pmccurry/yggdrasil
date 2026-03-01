@@ -38,3 +38,26 @@ export interface WidgetState {
   value:    string;
   tooltip?: string;
 }
+
+// --- Notifications ---
+
+export type NotificationEvent =
+  | 'terminal.command.complete'
+  | 'ai.response.complete'
+  | 'git.operation.complete'
+  | 'http.status.change'
+  | 'update.available';
+
+export interface NotificationEventConfig {
+  event:   NotificationEvent;
+  label:   string;
+  enabled: boolean;
+  audio:   boolean;
+}
+
+export interface NotificationConfig {
+  enabled:      boolean;
+  audioEnabled: boolean;
+  audioVolume:  number;  // 0.0 – 1.0
+  events:       NotificationEventConfig[];
+}

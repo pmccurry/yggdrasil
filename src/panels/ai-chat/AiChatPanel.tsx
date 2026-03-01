@@ -8,6 +8,7 @@ import { LogicalPosition, LogicalSize } from '@tauri-apps/api/dpi';
 import { listen } from '@tauri-apps/api/event';
 import type { AiMessage } from '../../shell/ai';
 import { aiChatStream } from '../../shell/ai';
+import { emitNotification } from '../../utils/notify';
 import styles from './AiChatPanel.module.css';
 
 function AiChatPanel({ panelId, settings, onSettingsChange }: PanelProps) {
@@ -221,6 +222,7 @@ function AiChatPanel({ panelId, settings, onSettingsChange }: PanelProps) {
 
       const unlisten2 = await listen(`ai-stream-done-${requestId}`, () => {
         setStreaming(false);
+        emitNotification('ai.response.complete', 'AI Chat', `${provider!.name} response complete`);
         unlisteners.forEach(u => u());
       });
       unlisteners.push(unlisten2);

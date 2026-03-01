@@ -2,10 +2,11 @@ import { createContext, useContext, useReducer, useEffect, useRef, type ReactNod
 import { PanelType } from '../types/panels';
 import type { PanelSettings, AiProvider } from '../types/panels';
 import type { Workspace, AppConfig, LayoutPreset, PlanningDrawerContent, AppearanceSettings } from '../types/workspace';
+import type { NotificationConfig } from '../types/widgets';
 import type { KeyboardShortcut } from '../types/shortcuts';
 import { PANEL_REGISTRY } from '../panels/registry';
 import { PRESET_CONFIGS } from '../workspace/presets';
-import { loadConfig, saveConfig } from '../shell/workspace';
+import { loadConfig, saveConfig, defaultNotifications } from '../shell/workspace';
 
 // --- State Shape ---
 
@@ -16,6 +17,7 @@ interface WorkspaceState {
   shortcuts: KeyboardShortcut[];
   appearance: AppearanceSettings;
   providers: AiProvider[];
+  notifications: NotificationConfig;
 }
 
 // --- Actions ---
@@ -39,7 +41,8 @@ type WorkspaceAction =
   | { type: 'UPDATE_APPEARANCE'; appearance: AppearanceSettings }
   | { type: 'ADD_PROVIDER'; provider: AiProvider }
   | { type: 'UPDATE_PROVIDER'; provider: AiProvider }
-  | { type: 'DELETE_PROVIDER'; providerId: string };
+  | { type: 'DELETE_PROVIDER'; providerId: string }
+  | { type: 'UPDATE_NOTIFICATIONS'; notifications: NotificationConfig };
 
 // --- Reducer ---
 
@@ -57,6 +60,7 @@ function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): Works
         shortcuts: action.config.shortcuts,
         appearance: action.config.appearance,
         providers: action.config.providers,
+        notifications: action.config.notifications,
       };
     }
     case 'SWITCH_WORKSPACE': {
@@ -226,6 +230,8 @@ function workspaceReducer(state: WorkspaceState, action: WorkspaceAction): Works
         ...state,
         providers: state.providers.filter(p => p.id !== action.providerId),
       };
+    case 'UPDATE_NOTIFICATIONS':
+      return { ...state, notifications: action.notifications };
     default:
       return state;
   }
@@ -249,6 +255,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     shortcuts: [],
     appearance: { terminalFontSize: 14, editorFontSize: 14 },
     providers: [],
+    notifications: defaultNotifications(),
   });
 
   const initialLoadDone = useRef(false);
@@ -271,9 +278,10 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       shortcuts: state.shortcuts,
       appearance: state.appearance,
       providers: state.providers,
+      notifications: state.notifications,
     };
     saveConfig(config);
-  }, [state.workspaces, state.activeWorkspaceId, state.shortcuts, state.appearance, state.providers, state.loading]);
+  }, [state.workspaces, state.activeWorkspaceId, state.shortcuts, state.appearance, state.providers, state.notifications, state.loading]);
 
   const activeWorkspace = state.workspaces.find(w => w.id === state.activeWorkspaceId);
 

@@ -6,3 +6,4 @@ pub mod claude;
 pub mod http;
 pub mod credentials;
 pub mod ai;
+pub mod notification;

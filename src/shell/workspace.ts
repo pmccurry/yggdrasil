@@ -4,6 +4,7 @@ import { PanelType } from '../types/panels';
 import type { AiProvider } from '../types/panels';
 import { WidgetType } from '../types/widgets';
 import type { WidgetConfig } from '../types/widgets';
+import type { NotificationConfig } from '../types/widgets';
 import type { AppConfig, Workspace, WorkspaceActivationHook, PlanningDrawerContent, PanelSlot, AppearanceSettings } from '../types/workspace';
 import { DEFAULT_SHORTCUTS } from '../types/shortcuts';
 
@@ -38,6 +39,21 @@ function defaultProviders(): AiProvider[] {
     { id: `provider-${ts + 1}-chatgpt`, name: 'ChatGPT', providerType: 'openai', mode: 'webview', webviewUrl: 'https://chatgpt.com', enabled: true },
     { id: `provider-${ts + 2}-gemini`, name: 'Gemini', providerType: 'gemini', mode: 'webview', webviewUrl: 'https://gemini.google.com', enabled: true },
   ];
+}
+
+export function defaultNotifications(): NotificationConfig {
+  return {
+    enabled: true,
+    audioEnabled: true,
+    audioVolume: 0.5,
+    events: [
+      { event: 'terminal.command.complete', label: 'Terminal command complete', enabled: true, audio: true },
+      { event: 'ai.response.complete',     label: 'AI response complete',     enabled: true, audio: true },
+      { event: 'git.operation.complete',    label: 'Git operation complete',   enabled: true, audio: true },
+      { event: 'http.status.change',        label: 'HTTP status change',       enabled: true, audio: true },
+      { event: 'update.available',          label: 'Update available',         enabled: true, audio: true },
+    ],
+  };
 }
 
 function defaultWidgets(projectRoot: string): WidgetConfig[] {
@@ -96,6 +112,7 @@ export function createDefaultConfig(): AppConfig {
     shortcuts: DEFAULT_SHORTCUTS,
     appearance: { terminalFontSize: 14, editorFontSize: 14 },
     providers,
+    notifications: defaultNotifications(),
   };
 }
 
@@ -214,6 +231,12 @@ export async function loadConfig(): Promise<AppConfig> {
         }
       }
     }
+    // Migrate: add notifications config if missing
+    if (!config.notifications) {
+      (config as { notifications: NotificationConfig }).notifications = defaultNotifications();
+      migrated = true;
+    }
+
     // Migrate V3: add providers if missing, remap Claude panels to AiChat
     if (!config.providers || config.providers.length === 0) {
       const seeded = defaultProviders();
@@ -245,6 +268,7 @@ export async function loadConfig(): Promise<AppConfig> {
     shortcuts: DEFAULT_SHORTCUTS,
     appearance: { terminalFontSize: 14, editorFontSize: 14 },
     providers: defaultProviders(),
+    notifications: defaultNotifications(),
   };
   await store.set(CONFIG_KEY, firstRunConfig);
   await store.save();

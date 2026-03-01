@@ -2,7 +2,9 @@ import { useEffect } from 'react';
 import { WorkspaceProvider, useWorkspaceContext } from './store/WorkspaceContext';
 import { AppProvider, useAppContext } from './store/AppContext';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
+import { useNotifications } from './hooks/useNotifications';
 import { checkForUpdate } from './shell/updater';
+import { emitNotification } from './utils/notify';
 import Sidebar from './workspace/Sidebar';
 import StatusBar from './workspace/StatusBar';
 import LayoutGrid from './workspace/LayoutGrid';
@@ -22,6 +24,8 @@ function AppShell() {
     appDispatch,
   });
 
+  useNotifications({ config: wsState.notifications });
+
   // Check for updates once on startup
   useEffect(() => {
     checkForUpdate().then(result => {
@@ -32,6 +36,7 @@ function AppShell() {
           notes: result.notes,
           update: result.update,
         });
+        emitNotification('update.available', 'Update Available', `Version ${result.version} is available`);
       }
     });
   }, [appDispatch]);

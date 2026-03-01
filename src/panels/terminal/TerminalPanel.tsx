@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Terminal } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebLinksAddon } from '@xterm/addon-web-links';
@@ -11,11 +11,19 @@ import {
   onShellOutput,
 } from '../../shell/terminal';
 import type { PanelProps, TerminalSettings } from '../../types/panels';
+import { emitNotification } from '../../utils/notify';
 import styles from './terminal.module.css';
+
+const PROMPT_REGEX = /(?:PS [A-Z]:\\[^>]*>|[A-Z]:\\[^>]*>)\s*$/;
+const ANSI_REGEX = /\x1b\[[0-9;]*[a-zA-Z]/g;
+const MIN_COMMAND_DURATION_MS = 3000;
 
 function TerminalPanel({ panelId, settings, projectRoot }: PanelProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const busyRef = useRef(false);
+  const busySinceRef = useRef(0);
+  const initialPromptSeenRef = useRef(false);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -61,10 +69,24 @@ function TerminalPanel({ panelId, settings, projectRoot }: PanelProps) {
           return;
         }
 
-        // PTY output → xterm display
+        // PTY output → xterm display + prompt detection
         const unlisten = await onShellOutput(ptyId, (data) => {
           if (!disposed) {
             term.write(data);
+
+            // Detect prompt to track command completion
+            const clean = data.replace(ANSI_REGEX, '');
+            if (PROMPT_REGEX.test(clean)) {
+              if (!initialPromptSeenRef.current) {
+                initialPromptSeenRef.current = true;
+              } else if (busyRef.current) {
+                const elapsed = Date.now() - busySinceRef.current;
+                busyRef.current = false;
+                if (elapsed >= MIN_COMMAND_DURATION_MS) {
+                  emitNotification('terminal.command.complete', 'Terminal', 'Command finished');
+                }
+              }
+            }
           }
         });
         unlistenFn = unlisten;
@@ -73,6 +95,11 @@ function TerminalPanel({ panelId, settings, projectRoot }: PanelProps) {
         term.onData((data) => {
           if (ptyId && !disposed) {
             writeToShell(ptyId, data);
+            // Enter key (\r) marks start of a command
+            if (data === '\r' && !busyRef.current) {
+              busyRef.current = true;
+              busySinceRef.current = Date.now();
+            }
           }
         });
 

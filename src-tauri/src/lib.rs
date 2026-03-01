@@ -7,6 +7,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_notification::init())
         .manage(commands::shell::PtyStore::new())
         .invoke_handler(tauri::generate_handler![
             commands::shell::spawn_shell,
@@ -32,6 +33,8 @@ pub fn run() {
             commands::credentials::get_key_masked,
             commands::credentials::key_exists,
             commands::ai::ai_chat_stream,
+            commands::notification::request_notification_permission,
+            commands::notification::send_os_notification,
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

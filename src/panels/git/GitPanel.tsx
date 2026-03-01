@@ -12,6 +12,7 @@ import {
 } from '../../shell/git';
 import GitFileList from './GitFileList';
 import GitCommitForm from './GitCommitForm';
+import { emitNotification } from '../../utils/notify';
 import styles from './GitPanel.module.css';
 
 function GitPanel({ settings, projectRoot }: PanelProps) {
@@ -128,6 +129,7 @@ function GitPanel({ settings, projectRoot }: PanelProps) {
     setOperationMessage(null);
     try {
       await gitCommit(repoPath, message);
+      emitNotification('git.operation.complete', 'Git', 'Commit complete');
       await refresh();
     } catch (e) {
       setError(String(e));
@@ -143,6 +145,7 @@ function GitPanel({ settings, projectRoot }: PanelProps) {
     try {
       const result = await gitPush(repoPath);
       setOperationMessage(result);
+      emitNotification('git.operation.complete', 'Git', 'Push complete');
       await refresh();
     } catch (e) {
       setError(String(e));
@@ -158,6 +161,7 @@ function GitPanel({ settings, projectRoot }: PanelProps) {
     try {
       const result = await gitPull(repoPath);
       setOperationMessage(result);
+      emitNotification('git.operation.complete', 'Git', 'Pull complete');
       await refresh();
     } catch (e) {
       setError(String(e));

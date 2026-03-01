@@ -64,8 +64,8 @@ Every plan journal entry uses one of these status tags:
 | M15 — Tauri Updater | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
 | M16 — Distribution Setup | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
 | **— V4 —** | | | |
-| M17 — Public Release Prep | `[PLANNED]` | — | — |
-| M18 — OS Notifications + Audio | `[PLANNED]` | — | — |
+| M17 — Public Release Prep | `[COMPLETED]` | 2026-02-28 | 2026-02-28 |
+| M18 — OS Notifications + Audio | `[COMPLETED]` | 2026-03-01 | 2026-03-01 |
 | M19 — Panel Satellite Windows | `[PLANNED]` | — | — |
 | M20 — Workspace Import/Export | `[PLANNED]` | — | — |
 | M21 — Git Diff + Branch Management | `[PLANNED]` | — | — |
@@ -1993,7 +1993,56 @@ dependencies. It plays in the frontend context. This is the correct approach (D0
 
 ### M18 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### M18-P1: OS Notifications + Audio [COMPLETED]
+**Date:** 2026-03-01
+**Status:** `[COMPLETED]`
+
+**Approach:**
+- tauri-plugin-notification for OS toast notifications via Rust commands
+- Web Audio API oscillator (880Hz A5, 0.3s decay) for audio tones — no audio files (D048)
+- Global master switch + per-event granularity (D049)
+- Custom DOM event `yggdrasil:notify` dispatched by panels, consumed by `useNotifications` hook
+- NotificationConfig stored in AppConfig (app-global, not workspace-scoped)
+
+**Steps:**
+1. Added `tauri-plugin-notification` to Cargo.toml, registered plugin in lib.rs
+2. Created `src-tauri/src/commands/notification.rs` with `request_notification_permission` + `send_os_notification`
+3. Added notification capability to `capabilities/default.json`
+4. Added `NotificationEvent`, `NotificationEventConfig`, `NotificationConfig` types to `src/types/widgets.ts`
+5. Added `notifications: NotificationConfig` to `AppConfig` in `src/types/workspace.ts`
+6. Added `defaultNotifications()` factory + migration in `src/shell/workspace.ts`
+7. Added `UPDATE_NOTIFICATIONS` action to `WorkspaceContext` reducer, updated LOADED, initial state, save effect
+8. Created `src/shell/notification.ts` — Tauri invoke wrappers
+9. Created `src/utils/notify.ts` — `emitNotification()` DOM event dispatcher
+10. Created `src/hooks/useNotifications.ts` — core hook with config check, audio, lazy permission, OS dispatch
+11. Mounted `useNotifications` in `App.tsx`
+12. Wired terminal command complete detection in `TerminalPanel.tsx` (prompt regex + 3s threshold)
+13. Wired AI response complete in `AiChatPanel.tsx` (stream-done listener)
+14. Wired git operation complete in `GitPanel.tsx` (commit, push, pull)
+15. Wired HTTP status change detection in `useWidgets.ts` (previousStatesRef comparison)
+16. Wired update available in `App.tsx` (checkForUpdate effect)
+17. Created `NotificationsTab.tsx` + CSS module — settings UI with global/per-event toggles
+18. Added Notifications tab to `SettingsModal.tsx` between Providers and Appearance
+19. Verified: `cargo check` zero errors, `pnpm tsc --noEmit` zero errors
+
+**New Files (6):**
+- `src-tauri/src/commands/notification.rs`
+- `src/shell/notification.ts`
+- `src/utils/notify.ts`
+- `src/hooks/useNotifications.ts`
+- `src/workspace/Settings/NotificationsTab.tsx`
+- `src/workspace/Settings/NotificationsTab.module.css`
+
+**Modified Files (12):**
+- `src-tauri/Cargo.toml`, `src-tauri/src/lib.rs`, `src-tauri/src/commands/mod.rs`
+- `src-tauri/capabilities/default.json`
+- `src/types/widgets.ts`, `src/types/workspace.ts`
+- `src/shell/workspace.ts`, `src/store/WorkspaceContext.tsx`
+- `src/App.tsx`, `src/panels/terminal/TerminalPanel.tsx`
+- `src/panels/ai-chat/AiChatPanel.tsx`, `src/panels/git/GitPanel.tsx`
+- `src/hooks/useWidgets.ts`, `src/workspace/Settings/SettingsModal.tsx`
+
+**Decisions referenced:** D048 (Web Audio API), D049 (per-event granularity)
 
 ---
 

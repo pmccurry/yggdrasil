@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { WidgetConfig, WidgetState } from '../types/widgets';
+import { WidgetType } from '../types/widgets';
 import { WIDGET_REGISTRY } from '../widgets/registry';
+import { emitNotification } from '../utils/notify';
 
 const MIN_POLL_INTERVAL = 5000;
 const DEBOUNCE_DELAY = 500;
@@ -14,6 +16,7 @@ export function useWidgets(widgets: WidgetConfig[]): Map<string, WidgetState> {
   const intervalsRef = useRef<Map<string, ReturnType<typeof setInterval>>>(new Map());
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
+  const previousStatesRef = useRef<Map<string, WidgetState>>(new Map());
 
   const pollWidget = useCallback(async (config: WidgetConfig) => {
     const pollFn = WIDGET_REGISTRY[config.type];
@@ -23,9 +26,24 @@ export function useWidgets(widgets: WidgetConfig[]): Map<string, WidgetState> {
       const result = await pollFn(config);
       if (!mountedRef.current) return;
       const tooltip = `${config.label} (polled ${formatTime(new Date())})`;
+      const newState = { ...result, tooltip };
+
+      // Detect HTTP status changes
+      if (config.type === WidgetType.HttpEndpoint) {
+        const prev = previousStatesRef.current.get(config.id);
+        if (prev && prev.status !== 'loading' && prev.status !== result.status) {
+          emitNotification(
+            'http.status.change',
+            'HTTP Status',
+            `${config.label}: ${prev.status} → ${result.status}`,
+          );
+        }
+      }
+      previousStatesRef.current.set(config.id, newState);
+
       setStates(prev => {
         const next = new Map(prev);
-        next.set(config.id, { ...result, tooltip });
+        next.set(config.id, newState);
         return next;
       });
     } catch {

@@ -2,18 +2,20 @@ import { useState, useEffect } from 'react';
 import WorkspacesTab from './WorkspacesTab';
 import ShortcutsTab from './ShortcutsTab';
 import ProvidersTab from './ProvidersTab';
+import NotificationsTab from './NotificationsTab';
 import AppearanceTab from './AppearanceTab';
 import AboutTab from './AboutTab';
 import styles from './SettingsModal.module.css';
 
-type SettingsTab = 'workspaces' | 'shortcuts' | 'providers' | 'appearance' | 'about';
+type SettingsTab = 'workspaces' | 'shortcuts' | 'providers' | 'notifications' | 'appearance' | 'about';
 
 const TAB_LABELS: { key: SettingsTab; label: string }[] = [
-  { key: 'workspaces', label: 'Workspaces' },
-  { key: 'shortcuts',  label: 'Shortcuts' },
-  { key: 'providers',  label: 'Providers' },
-  { key: 'appearance', label: 'Appearance' },
-  { key: 'about',      label: 'About' },
+  { key: 'workspaces',    label: 'Workspaces' },
+  { key: 'shortcuts',     label: 'Shortcuts' },
+  { key: 'providers',     label: 'Providers' },
+  { key: 'notifications', label: 'Notifications' },
+  { key: 'appearance',    label: 'Appearance' },
+  { key: 'about',         label: 'About' },
 ];
 
 interface SettingsModalProps {
@@ -46,8 +48,9 @@ function SettingsModal({ onClose }: SettingsModalProps) {
     switch (activeTab) {
       case 'workspaces':  return <WorkspacesTab />;
       case 'shortcuts':   return <ShortcutsTab />;
-      case 'providers':   return <ProvidersTab />;
-      case 'appearance':  return <AppearanceTab />;
+      case 'providers':      return <ProvidersTab />;
+      case 'notifications': return <NotificationsTab />;
+      case 'appearance':    return <AppearanceTab />;
       case 'about':       return <AboutTab />;
     }
   }

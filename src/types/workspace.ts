@@ -1,6 +1,6 @@
 import type { PanelSettings, AiProvider } from './panels';
 import { PanelType } from './panels';
-import type { WidgetConfig } from './widgets';
+import type { WidgetConfig, NotificationConfig } from './widgets';
 import type { KeyboardShortcut } from './shortcuts';
 
 export interface PanelSlot {
@@ -62,4 +62,5 @@ export interface AppConfig {
   shortcuts:         KeyboardShortcut[];
   appearance:        AppearanceSettings;
   providers:         AiProvider[];
+  notifications:     NotificationConfig;
 }

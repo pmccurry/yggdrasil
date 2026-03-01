@@ -227,10 +227,17 @@ export async function loadConfig(): Promise<AppConfig> {
     return config;
   }
 
-  const defaultConfig = createDefaultConfig();
-  await store.set(CONFIG_KEY, defaultConfig);
+  const firstRunConfig: AppConfig = {
+    version: '1.0.0',
+    activeWorkspaceId: '',
+    workspaces: [],
+    shortcuts: DEFAULT_SHORTCUTS,
+    appearance: { terminalFontSize: 14, editorFontSize: 14 },
+    providers: defaultProviders(),
+  };
+  await store.set(CONFIG_KEY, firstRunConfig);
   await store.save();
-  return defaultConfig;
+  return firstRunConfig;
 }
 
 export async function saveConfig(config: AppConfig): Promise<void> {

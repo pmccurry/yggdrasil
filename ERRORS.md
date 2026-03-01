@@ -511,18 +511,24 @@ The app loaded directly into a default workspace instead of showing the onboardi
 None — root cause was identified immediately from code inspection.
 
 **Solution:**
-`createDefaultConfig()` in `src/shell/workspace.ts` pre-populated a "My Workspace" with
-panels and widgets. The FirstRun check in `App.tsx` (`workspaces.length === 0`) was always
-false because `loadConfig()` called `createDefaultConfig()` on first run, which returned
-a config with one workspace already in it.
+Two-part fix required:
 
-Fix: Replace `createDefaultConfig()` call in `loadConfig()` with an inline first-run config
-that has `workspaces: []` and `activeWorkspaceId: ''`. The FirstRun component then renders
-and guides the user through workspace creation.
+1. (v0.1.1) Replace `createDefaultConfig()` call in `loadConfig()` with an inline first-run
+   config that has `workspaces: []` and `activeWorkspaceId: ''`. Fixes new installs.
+
+2. (v0.1.2) Add migration in `loadConfig()` that detects the bogus default workspace
+   (single workspace named "My Workspace" with empty `projectRoot`) and clears it.
+   Fixes existing installs that got the v0.1.0 pre-populated workspace. The migration
+   only fires once — after a user creates a real workspace, the condition no longer matches.
+
+Both fixes were needed because the Tauri app data directory (`%APPDATA%/com.yggdrasil.app/`)
+persists across uninstall/reinstall. The config.json from v0.1.0 survived and prevented
+the first-run screen from appearing even after the v0.1.1 code fix.
 
 **Implications:**
 - Default workspace creation should only happen through explicit user action (FirstRun or
   CreateWorkspaceModal), never automatically in config initialization
+- Tauri app data survives Windows uninstall — never assume a reinstall is a clean slate
 - Any future config migration must preserve empty workspaces array for first-run detection
 - `createDefaultConfig()` still exists and is used elsewhere — it was not removed
 

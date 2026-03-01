@@ -598,9 +598,9 @@ Fix: Go to repo Settings > Actions > General > Workflow permissions and select
 **Problem:**
 After making the repo public (D041), audit revealed personal information accessible
 to anyone:
-- Git commit author email (Patrickmccurry11@gmail.com) in all 46+ commits
-- Local file paths (`C:/users/patri/Ratatoskr`) in ARCHITECTURE.md example configs
-- Windows username (`patri`) in IMPLEMENTATION.md
+- Git commit author email ({developer-email}) in all 46+ commits
+- Local file paths (`C:/users/{username}/Ratatoskr`) in ARCHITECTURE.md example configs
+- Windows username (`{username}`) in IMPLEMENTATION.md
 - GitHub username (`pmccurry`) in multiple docs (inherently public as repo owner)
 
 **Failed Approaches:**

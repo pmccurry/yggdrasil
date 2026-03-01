@@ -63,6 +63,12 @@ Every plan journal entry uses one of these status tags:
 | M14 — AI Provider System | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
 | M15 — Tauri Updater | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
 | M16 — Distribution Setup | `[COMPLETED]` | 2026-02-26 | 2026-02-26 |
+| **— V4 —** | | | |
+| M17 — Public Release Prep | `[PLANNED]` | — | — |
+| M18 — OS Notifications + Audio | `[PLANNED]` | — | — |
+| M19 — Panel Satellite Windows | `[PLANNED]` | — | — |
+| M20 — Workspace Import/Export | `[PLANNED]` | — | — |
+| M21 — Git Diff + Branch Management | `[PLANNED]` | — | — |
 
 ---
 
@@ -203,7 +209,7 @@ Nothing else is built until this works end to end.
 8. Write minimal PanelContainer with Suspense + PanelSkeleton
 9. Write a temporary hardcoded test layout in App.tsx:
    - Single PanelContainer rendering TerminalPanel
-   - Hardcoded settings: shell='powershell.exe', cwd='C:/users/patri'
+   - Hardcoded settings: shell='powershell.exe', cwd='C:/users/{username}'
 10. Test end to end: app renders, PowerShell starts, commands work, unmount cleans up
 11. Document any PTY issues or workarounds in ERRORS.md
 12. Commit: "M1 complete — terminal panel end to end"
@@ -1764,9 +1770,538 @@ collects. Having a clear written answer ready builds trust before they ask.
 
 ---
 
-## APPENDIX A — V4+ CONSIDERATIONS
+## MILESTONE 17 — PUBLIC RELEASE PREP
 
-Items sequenced beyond V3. Not forgotten — logged here so V4 planning has a
+### Definition of Done
+
+- [ ] All personal file paths replaced in docs (`C:/users/{username}/` pattern throughout)
+- [x] Windows username `{username}` removed from all reference files
+- [ ] Personal email address removed from all reference files
+- [ ] Local machine paths removed from ERRORS.md and DECISIONS.md entries
+- [ ] JSON config example in ARCHITECTURE.md uses `{username}` placeholder
+- [ ] TerminalSettings startup command examples use `{username}` placeholder
+- [ ] Git config set to noreply email before first commit:
+      `git config user.email "pmccurry@users.noreply.github.com"`
+- [ ] Tauri signing keypair regenerated with real password (not empty string)
+- [ ] Private key stored at `~/.tauri/yggdrasil.key`, NOT in repo
+- [ ] Public key updated in `src-tauri/tauri.conf.json`
+- [x] Tauri updater endpoint in `tauri.conf.json` points to correct public repo URL
+- [ ] Both GitHub Actions secrets set via `gh secret set` CLI (not web UI)
+- [ ] TESTER_GUIDE.md reviewed and updated — no personal info, install steps current
+- [ ] First push to clean repo on master branch
+- [ ] CI workflow passes (tsc + cargo check + build)
+- [ ] Release tag `v0.3.0` pushed, release workflow builds and signs successfully
+- [ ] `latest.json` published to GitHub releases, updater endpoint reachable
+- [ ] Updater tested — "Check for Updates" shows "up to date" on v0.3.0
+- [ ] App installs cleanly on a test machine from the new release
+- [ ] First-run experience appears correctly on clean install
+
+### Ordered Task List
+
+**Doc Sanitization — Do First**
+1. Search all five reference files for personal username — replace with `{username}` ✓
+2. Confirm no personal username remains in any reference file ✓
+3. Search all five reference files for personal email address — replace with `{developer}`
+4. Review ERRORS.md — redact any local machine paths in error descriptions
+5. Review DECISIONS.md — confirm no personal paths in implications sections
+6. Verify TESTER_GUIDE.md — no personal info, system requirements accurate,
+   install steps match current release flow
+7. Run `pnpm tsc --noEmit` and `cargo check` — confirm zero errors after any doc changes
+
+**Signing Key Regeneration**
+8. Delete old key if it exists: `rm ~/.tauri/yggdrasil.key`
+9. Regenerate with real password:
+   `npx tauri signer generate -w ~/.tauri/yggdrasil.key -p "yggdrasil" --ci`
+   (Use a real memorable password — NOT empty string. See ERRORS.md signing entry.)
+10. Copy the generated public key output
+11. Update `src-tauri/tauri.conf.json` — replace `plugins.updater.pubkey` with new public key
+12. Update `plugins.updater.endpoints` — confirm URL matches new public repo:
+    `https://github.com/pmccurry/yggdrasil/releases/latest/download/latest.json`
+
+**First Push**
+13. Confirm git config: `git config user.email "pmccurry@users.noreply.github.com"`
+14. `git init` (if fresh clone not yet initialized) and add remote:
+    `git remote add origin https://github.com/pmccurry/yggdrasil.git`
+15. Single initial commit of entire codebase:
+    `git add . && git commit -m "V3 complete — initial public release"`
+16. Push: `git push -u origin master`
+17. Verify CI workflow triggers and passes
+
+**Secrets Setup**
+18. Set signing key secret:
+    `gh secret set TAURI_SIGNING_PRIVATE_KEY < ~/.tauri/yggdrasil.key`
+19. Set signing password secret:
+    `echo -n "yggdrasil" | gh secret set TAURI_SIGNING_PRIVATE_KEY_PASSWORD`
+    (Use the same password set in step 9)
+
+**Release**
+20. Bump version to `0.3.0` in `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`
+21. Commit: `git commit -am "Bump version to 0.3.0"`
+22. Tag and push: `git tag v0.3.0 && git push && git push --tags`
+23. Monitor release workflow — confirm build, sign, and release creation succeed
+24. Publish the draft release in GitHub UI
+25. Test updater on clean machine — "Check for Updates" should show "up to date"
+26. Test clean install from new release — first-run experience appears
+27. Commit: "M17 complete — public release prep"
+
+### Notes
+
+See ERRORS.md for three critical lessons from the V3 release attempt:
+- Signing key always encrypts — empty password is still a password (use a real one)
+- Use `gh secret set` from CLI, never the GitHub web UI (encoding corruption)
+- After repo visibility change, check GitHub Actions workflow permissions in repo settings
+
+The version bump to `0.3.0` reflects: V1 (0.1.x) + V2 (0.2.x) + V3 (0.3.0) versioning.
+
+---
+
+### M17 — Plan Journal
+
+#### M17-P1: Public Release Prep [IN PROGRESS]
+**Date:** 2026-02-28
+**Scope:** Sanitize docs, fix updater endpoint, bump version to 0.3.0, verify build
+
+**Steps completed by Claude Code:**
+1. Fixed updater endpoint in `src-tauri/tauri.conf.json` — changed from `.git` URL to
+   `/releases/latest/download/latest.json` ✓
+2. Sanitized personal username from `IMPLEMENTATION.md` (lines 212, 1778, 1802, 1803)
+   and `ERRORS.md` (line 603) — replaced with `{username}` placeholder ✓
+3. Version bumped to `0.3.0` in all three files: `package.json`,
+   `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml` ✓
+4. `cargo check` — updated Cargo.lock, compiled at v0.3.0, zero errors ✓
+5. `pnpm tsc --noEmit` — zero TypeScript errors ✓
+6. Grep confirmed zero `patri` matches across all .md files ✓
+
+**Remaining (user-driven steps):**
+- Set password secret via `gh secret set`
+- Stage all files, commit, push to origin master
+- Tag v0.3.0 and push tags
+- Monitor CI + release workflows
+- Publish draft release
+
+---
+
+## MILESTONE 18 — OS NOTIFICATIONS + AUDIO
+
+### Definition of Done
+
+- [ ] `tauri-plugin-notification` added to Cargo.toml and registered in lib.rs
+- [ ] `notification` permission added to Tauri capabilities
+- [ ] `NotificationConfig` added to `AppConfig` schema with sensible defaults
+- [ ] `loadConfig()` seeds default `NotificationConfig` on first load
+- [ ] `requestNotificationPermission()` Rust command implemented
+- [ ] `sendOsNotification(title, body)` Rust command implemented
+- [ ] `src/shell/notification.ts` — TypeScript wrappers for both commands
+- [ ] `useNotifications` hook: subscribes to app events, dispatches notifications
+      based on user config, plays audio tones via Web Audio API
+- [ ] Terminal command complete detection: watches PTY output for shell prompt
+      pattern after a command was running (heuristic: prompt appears after non-prompt output)
+- [ ] AI response complete: fires when aiChatStream promise resolves
+- [ ] Git operation complete: fires after gitPush/gitPull/gitCommit resolves
+- [ ] HTTP status change: fires when widget status value changes from previous poll
+- [ ] Update available: fires when checkForUpdate returns a result
+- [ ] Audio: Web Audio API oscillator tone — short pleasant chime, no audio files
+- [ ] Audio volume respects NotificationConfig.audioVolume
+- [ ] `NotificationsTab` added to SettingsModal with tabs update
+- [ ] NotificationsTab: global on/off toggle, global audio toggle, volume slider,
+      per-event enable/audio toggles, permission status + re-request button
+- [ ] Notification permission requested on first notification attempt (not on startup)
+- [ ] If permission denied: silently skips OS notification, audio still plays if enabled
+- [ ] `pnpm tsc --noEmit` zero errors, `cargo check` zero errors
+
+### Ordered Task List
+
+**Rust Backend**
+1. Add `tauri-plugin-notification` to Cargo.toml
+2. Register plugin in `src-tauri/src/lib.rs`
+3. Add `notification:default` to capability in `src-tauri/capabilities/default.json`
+4. Create `src-tauri/src/commands/notification.rs`:
+   - `request_notification_permission() -> Result<bool, String>`
+   - `send_os_notification(title: String, body: String) -> Result<(), String>`
+5. Register notification commands in lib.rs
+
+**Types + Schema**
+6. Add `NotificationEvent`, `NotificationEventConfig`, `NotificationConfig`
+   to `src/types/widgets.ts` (already in ARCHITECTURE.md Section 6.2)
+7. Add `notifications: NotificationConfig` to `AppConfig` in `src/types/workspace.ts`
+8. Update `loadConfig()` in `src/shell/workspace.ts` to seed default NotificationConfig:
+   - enabled: true, audioEnabled: true, audioVolume: 0.7
+   - All events enabled by default, audio enabled for terminal.command.complete only
+9. Add `ADD_PROVIDER`/`UPDATE_NOTIFICATIONS` action to WorkspaceContext or AppContext
+   (notifications is an AppConfig field, not workspace-scoped)
+
+**Shell Wrappers**
+10. Create `src/shell/notification.ts`:
+    - `requestNotificationPermission(): Promise<boolean>`
+    - `sendOsNotification(title: string, body: string): Promise<void>`
+
+**Hook**
+11. Create `src/hooks/useNotifications.ts`:
+    - Reads NotificationConfig from context
+    - Exposes `notify(event: NotificationEvent, title: string, body: string)` function
+    - On `notify()`: checks event is enabled, calls sendOsNotification if so,
+      plays audio tone if event.audio is enabled, requests permission on first call
+    - Audio tone via Web Audio API:
+      ```typescript
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 880;
+      gain.gain.value = volume;
+      osc.start();
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
+      osc.stop(ctx.currentTime + 0.3);
+      ```
+    - Mount hook in App.tsx — single instance at app root
+
+**Event Wiring**
+12. Terminal complete: in TerminalPanel, watch PTY data stream for shell prompt
+    pattern after non-prompt output. On detection, call `notify('terminal.command.complete', ...)`
+    Pass `notify` function via PanelProps or via a hook internal to TerminalPanel.
+    (Simplest: expose notify via a context or pass through PanelProps onNotify callback)
+13. AI response: in AiChatPanel API mode, call notify after aiChatStream resolves
+14. Git operations: in GitPanel, call notify after gitPush/gitPull/gitCommit resolves
+15. HTTP status change: in HttpEndpointWidget, call notify when status value changes
+16. Update available: in AppShell startup check, call notify if update found
+
+**Settings UI**
+17. Create `src/workspace/Settings/NotificationsTab.tsx`:
+    - Global enabled toggle (master switch)
+    - Global audio toggle
+    - Volume slider (0–100%, maps to 0.0–1.0)
+    - Permission status row: "Notifications: Allowed / Denied / Unknown"
+      + "Request Permission" button
+    - Per-event table: event label | OS notification toggle | Audio toggle
+18. Add `NotificationsTab` to `SettingsModal.tsx` tab list
+    (new tab between Providers and Appearance)
+19. Test: enable terminal notification, run a long command, verify OS notification fires
+20. Test: disable audio globally, verify no tone plays even when event fires
+21. Test: toggle per-event — verify only enabled events trigger
+22. Log D053 (Web Audio API for tones) in DECISIONS.md
+23. Commit: "M18 complete — OS notifications + audio"
+
+### Notes
+
+Terminal prompt detection is heuristic. The most reliable pattern on PowerShell is
+watching for the prompt suffix (e.g. `> ` or `PS C:\`) after a period of output that
+didn't start with a prompt. This will have false positives if a program outputs
+prompt-like text. That's acceptable — it's a notification, not a contract. If false
+positives are a tester complaint, add a minimum command duration threshold (e.g. only
+notify if the command ran for more than 3 seconds).
+
+Web Audio API oscillator requires no audio files, no external assets, no Cargo
+dependencies. It plays in the frontend context. This is the correct approach (D053).
+
+---
+
+### M18 — Plan Journal
+
+*Plans will be appended here by Claude Code during execution.*
+
+---
+
+## MILESTONE 19 — PANEL SATELLITE WINDOWS
+
+### Definition of Done
+
+- [ ] Any panel can be popped out to a satellite window via a button on the panel header
+- [ ] Satellite window opens as a native OS window, moveable and resizable
+- [ ] Satellite window renders the panel content with minimal chrome:
+      accent-colored title strip, panel type icon, panel name, "↙ Recall" button
+- [ ] Satellite window has no Yggdrasil sidebar, no status bar, no other workspace UI
+- [ ] Main window shows a `SatellitePlaceholder` in the panel slot when popped out:
+      panel type label, pulsing connected indicator, "↙ Recall" button
+- [ ] Placeholder preserves the panel's slot dimensions — layout does not reflow
+- [ ] Recalling closes the satellite window and restores the full panel in the slot
+- [ ] Terminal panel: satellite connects to the SAME PTY — shell session is uninterrupted
+- [ ] Terminal panel: main window can recall and reconnect to the same PTY
+- [ ] AiChat/Webview panels in webview mode: satellite opens a NEW webview at same URL.
+      Session continuity is the website's responsibility. Placeholder notes this.
+- [ ] All other panel types (FileTree, Editor, Git, AiChat API mode): seamless
+- [ ] Keyboard shortcuts: panel.satellite.{0-3} pops out the corresponding slot
+- [ ] Keyboard shortcut: panel.recall.all recalls all open satellites
+- [ ] WorkspaceContext tracks `satellitePanels` (runtime only, never persisted)
+- [ ] App close: all satellite windows close with the main window
+- [ ] `pnpm tsc --noEmit` zero errors, `cargo check` zero errors
+
+### Ordered Task List
+
+**Architecture Note — Read First**
+The satellite window loads the same Yggdrasil React app at a special URL:
+`index.html?satellite=true&panelId={slotId}&panelType={type}&workspaceId={id}&ptyId={id}`
+The SatelliteShell component detects the URL params on mount and renders only the
+panel in a minimal wrapper. The main window and satellite communicate via Tauri events.
+No new Tauri window API beyond WebviewWindow is needed — this is standard Tauri V2.
+
+**Rust Backend**
+1. Create `src-tauri/src/commands/satellite.rs`:
+   - `open_satellite_window(panel_id: String, window_label: String, url: String) -> Result<(), String>`
+     Creates a WebviewWindow with custom title, no decorations (custom chrome),
+     minimum size 400×300, remembers last position/size via Tauri window state plugin
+   - `close_satellite_window(window_label: String) -> Result<(), String>`
+   - `get_open_satellite_windows() -> Result<Vec<String>, String>`
+2. Register commands in lib.rs
+3. Add window state plugin for position memory (tauri-plugin-window-state)
+   Log crate choice in DECISIONS.md
+
+**Types**
+4. Add `SatelliteWindowInfo`, `PanelSlotRuntime` to `src/types/panels.ts`
+   (already defined in ARCHITECTURE.md Section 6.2)
+5. Add `satellitePanels: Record<string, SatelliteWindowInfo>` to WorkspaceContext
+   runtime state (NOT in AppConfig — never persisted)
+6. Add `SATELLITE_OPEN` and `SATELLITE_CLOSE` actions to WorkspaceContext reducer
+7. Add shortcut actions `panel.satellite.0–3` and `panel.recall.all` to
+   `ShortcutAction` type and DEFAULT_SHORTCUTS in `src/types/shortcuts.ts`
+   (already in ARCHITECTURE.md Section 6.5)
+
+**Shell Wrappers**
+8. Create `src/shell/satellite.ts` — wrappers for all three Rust commands
+
+**Main Window Components**
+9. Add pop-out button to panel header in `PanelContainer.tsx`:
+   Small icon button (⊞ or ↗) appears on panel header hover. Dispatches SATELLITE_OPEN.
+10. Create `src/panels/SatellitePlaceholder.tsx`:
+    - Renders in place of panel content when slot has a satelliteWindowLabel
+    - Shows panel type icon, panel name, pulsing connected dot
+    - "↙ Recall" button — dispatches SATELLITE_CLOSE + closes window
+    - For webview-mode panels: shows note "Web session continues in satellite window"
+    - Matches the panel's slot dimensions exactly — no layout reflow
+11. Update `PanelContainer.tsx` to render SatellitePlaceholder when
+    `satellitePanels[slot.id]` exists in WorkspaceContext
+12. Wire `SATELLITE_OPEN` action in WorkspaceContext:
+    - Calls `openSatelliteWindow` with constructed URL
+    - URL params: `?satellite=true&panelId={id}&panelType={type}&workspaceId={id}`
+    - For terminal: append `&ptyId={currentPtyId}` (TerminalPanel exposes ptyId via onSettingsChange)
+    - Adds entry to satellitePanels map
+13. Wire `SATELLITE_CLOSE` action: calls `closeSatelliteWindow`, removes from map
+14. Wire keyboard shortcuts in `useKeyboardShortcuts.ts`:
+    - `panel.satellite.N` → dispatches SATELLITE_OPEN for slot N
+    - `panel.recall.all` → dispatches SATELLITE_CLOSE for all open satellites
+
+**Satellite Window — SatelliteShell**
+15. Create `src/panels/SatelliteShell.tsx`:
+    - Reads URL search params on mount: panelId, panelType, workspaceId, ptyId
+    - Loads workspace config (same loadConfig() call)
+    - Finds the workspace and panel slot by IDs
+    - Renders minimal chrome:
+      ```
+      ┌─────────────────────────────────────┐
+      │ ▋ [icon] Terminal  [↙ Recall]       │  ← accent strip, custom titlebar
+      ├─────────────────────────────────────┤
+      │                                     │
+      │         Panel content here          │
+      │                                     │
+      └─────────────────────────────────────┘
+      ```
+    - "↙ Recall" button: emits Tauri event `panel:recall-requested:{panelId}`
+      to main window, then calls closeSatelliteWindow on self
+    - Passes ptyId through to TerminalPanel settings if present
+16. Update `App.tsx` / `main.tsx` to detect satellite mode from URL params
+    and render SatelliteShell instead of the full app when `?satellite=true`
+17. Wire main window listener for `panel:recall-requested:{panelId}` Tauri event
+    → dispatches SATELLITE_CLOSE for the corresponding slot
+18. Wire app close: listen for Tauri `window:close` event on main window,
+    close all open satellite windows before app exits
+
+**Testing**
+19. Test: pop out terminal, run a command in satellite, recall — verify PTY session intact
+20. Test: pop out AI chat panel (webview mode) — verify new session note shown in placeholder
+21. Test: pop out editor panel, edit a file in satellite, recall — verify file state preserved
+22. Test: pop out panel, close main window — verify satellite closes with it
+23. Test: keyboard shortcut pop-out and recall
+24. Test: multiple panels popped simultaneously
+25. Log D054 (satellite URL param approach) and D055 (window-state plugin) in DECISIONS.md
+26. Commit: "M19 complete — panel satellite windows"
+
+### Notes
+
+The URL param approach for satellite mode detection is the correct pattern for Tauri
+multi-window with a single-page app. No new entry points, no additional Vite bundles.
+The same React app detects its context from the URL and renders accordingly.
+
+For TerminalPanel to expose its PTY ID to the satellite system, it needs to call
+`onSettingsChange({ ...settings, _ptyId: currentPtyId })` when the PTY spawns.
+The `_ptyId` is a runtime-only settings field, stripped before persistence.
+PanelContainer reads it when building the satellite URL. This is a clean way to
+pass runtime state without breaking the panel contract.
+
+The webview session continuity note in SatellitePlaceholder is important for
+tester trust — they need to understand why their Claude chat history is in the
+satellite and not magically in the placeholder.
+
+---
+
+### M19 — Plan Journal
+
+*Plans will be appended here by Claude Code during execution.*
+
+---
+
+## MILESTONE 20 — WORKSPACE IMPORT/EXPORT
+
+### Definition of Done
+
+- [ ] Export: "Export Workspace" button in Settings > Workspaces tab per workspace
+- [ ] Export produces a portable JSON file: workspace config with `apiKeyRef` fields
+      stripped (references removed, not the keys themselves)
+- [ ] Exported JSON is clearly marked as a Yggdrasil workspace export with schema version
+- [ ] Export uses native OS save dialog for file destination
+- [ ] Import: "Import Workspace" button in Settings > Workspaces tab
+- [ ] Import reads a workspace export JSON, validates schema
+- [ ] If imported workspace has AI providers with API mode: prompts user to enter
+      API keys for those providers after import (they were stripped in export)
+- [ ] Import adds the workspace to current config, does not replace existing workspaces
+- [ ] Imported workspace gets a new UUID to avoid ID collisions
+- [ ] projectRoot is reset to empty on import (paths don't transfer between machines)
+      — user is prompted to select their local project folder after import
+- [ ] Duplicate workspace name handled: appended with "(imported)" suffix
+- [ ] `pnpm tsc --noEmit` zero errors
+
+### Ordered Task List
+
+1. Add `WorkspaceExport` interface to `src/types/workspace.ts`:
+   ```typescript
+   export interface WorkspaceExport {
+     yggdrasilExport: true;          // marker field for validation
+     schemaVersion:   string;        // e.g. "4.0"
+     exportedAt:      string;        // ISO date
+     workspace:       Omit<Workspace, 'id'> & {
+       providers?: Omit<AiProvider, 'apiKeyRef'>[];  // keys stripped
+     };
+   }
+   ```
+2. Add `exportWorkspace` and `importWorkspace` to `src/shell/workspace.ts`:
+   - `exportWorkspace(workspace: Workspace, providers: AiProvider[]): Promise<void>`
+     Strips apiKeyRef from any providers, opens save dialog, writes JSON
+   - `importWorkspace(): Promise<WorkspaceExport | null>`
+     Opens file picker (JSON only), reads and parses file, validates marker field
+3. Add Tauri commands for file dialog in `src-tauri/src/commands/workspace.rs`:
+   - `save_workspace_export(path: String, json: String) -> Result<(), String>`
+   - `pick_json_file() -> Result<Option<String>, String>` — returns file path
+4. Add export button to `WorkspacesTab.tsx` — renders per workspace row
+5. Implement export flow:
+   - Strip apiKeyRef from any providers referenced by this workspace
+   - Construct WorkspaceExport object
+   - Call exportWorkspace — triggers save dialog
+6. Add import button to `WorkspacesTab.tsx` — top-level "Import Workspace" button
+7. Implement import flow:
+   - Call importWorkspace — file picker + parse
+   - Validate `yggdrasilExport === true` and schemaVersion
+   - Generate new UUID for imported workspace
+   - Reset projectRoot to ''
+   - Handle duplicate names (append "(imported)")
+   - If workspace has AI providers with apiEndpoint but no apiKeyRef:
+     show a modal prompting user to enter keys for each
+   - Dispatch CREATE_WORKSPACE with imported data
+   - Open workspace folder picker immediately for projectRoot selection
+8. Test: export workspace, import on same machine — verify all settings transfer
+9. Test: export workspace with API provider — verify key NOT in export JSON
+10. Test: import workspace — verify prompted to select project folder
+11. Commit: "M20 complete — workspace import/export"
+
+### Notes
+
+The apiKeyRef strip on export is a security requirement, not a convenience.
+Keys must never appear in a file the user might share. The import flow prompting
+for keys after import is the correct UX — it's explicit and secure.
+
+projectRoot reset is correct because absolute paths don't transfer between machines.
+The import flow must guide the user to select their local equivalent.
+
+---
+
+### M20 — Plan Journal
+
+*Plans will be appended here by Claude Code during execution.*
+
+---
+
+## MILESTONE 21 — GIT DIFF + BRANCH MANAGEMENT
+
+### Definition of Done
+
+- [ ] GitPanel has a new "Diff" view: shows visual file diff when a changed file is clicked
+- [ ] Diff view renders added lines (green), removed lines (red), context lines (dim)
+- [ ] Diff view has a "← Back" button to return to file list
+- [ ] GitPanel header shows current branch name (was already in M13)
+- [ ] GitPanel has a "Branches" button that opens branch management view
+- [ ] Branch management view: lists all local branches, active branch highlighted
+- [ ] Create branch: input field + "Create" button — creates and switches to new branch
+- [ ] Switch branch: click any branch row to switch — confirms if uncommitted changes exist
+- [ ] V4 Rust commands: gitDiff, gitListBranches, gitCreateBranch, gitSwitchBranch
+- [ ] All new commands use git CLI via std::process::Command (D017 pattern)
+- [ ] Diff view handles binary files gracefully (shows "Binary file — diff not available")
+- [ ] Branch switch with dirty working tree: confirmation dialog before switching
+- [ ] `pnpm tsc --noEmit` zero errors, `cargo check` zero errors
+
+### Ordered Task List
+
+**Rust Backend**
+1. Add to `src-tauri/src/commands/git.rs`:
+   - `git_diff(repo_path: String, file_path: String) -> Result<String, String>`
+     Returns raw unified diff output from `git diff HEAD -- {file_path}`
+   - `git_list_branches(repo_path: String) -> Result<Vec<GitBranchInfo>, String>`
+     Returns list with name, isCurrent, lastCommitMessage fields
+   - `git_create_branch(repo_path: String, name: String) -> Result<(), String>`
+     Runs `git checkout -b {name}`
+   - `git_switch_branch(repo_path: String, name: String) -> Result<(), String>`
+     Runs `git checkout {name}`
+2. Add `GitBranchInfo` struct to Rust types
+3. Register new commands in lib.rs
+
+**TypeScript**
+4. Add `GitDiff`, `GitBranchInfo` types to `src/panels/git/git.types.ts`
+5. Add wrappers to `src/shell/git.ts`
+
+**Components**
+6. Create `src/panels/git/GitDiff.tsx`:
+   - Receives raw unified diff string as prop
+   - Parses diff lines: `+` = added, `-` = removed, ` ` = context, `@@` = hunk header
+   - Renders each line with appropriate background color using CSS variables
+   - Binary file guard: if diff string contains "Binary files", show message
+   - "← Back to files" button
+7. Create `src/panels/git/BranchManager.tsx`:
+   - Receives branch list as prop
+   - Renders list: current branch highlighted with accent, others dim
+   - Create branch: input + button at top of list
+   - Click non-current branch: if clean working tree → switch immediately
+     If dirty → confirmation dialog: "You have uncommitted changes. Switch anyway?"
+   - "← Back" button
+8. Update `GitPanel.tsx`:
+   - Add view state: 'files' | 'diff' | 'branches'
+   - In file list: clicking a modified file transitions to diff view
+   - "Branches" button in panel header transitions to branch view
+   - Pass appropriate data and callbacks to GitDiff and BranchManager
+   - After branch switch: re-poll git status, return to files view
+9. Test: click modified file → diff renders with correct coloring
+10. Test: create branch → switches and appears in list
+11. Test: switch branch with dirty tree → confirmation appears
+12. Test: binary file diff → graceful message
+13. Commit: "M21 complete — git diff + branch management"
+
+### Notes
+
+Unified diff parsing is straightforward — no library needed. The raw output of
+`git diff HEAD -- {file}` is line-by-line text. Lines starting with `+` are
+additions, `-` are removals, ` ` are context, `@@` are hunk headers.
+Parse once into a structured array of `{ type, content }` objects and render.
+
+Merge conflict resolution is NOT in M21 scope. If the user tries to switch
+branches and there's a merge in progress, show a clear error message only.
+
+---
+
+### M21 — Plan Journal
+
+*Plans will be appended here by Claude Code during execution.*
+
+---
+
+## APPENDIX A — V5+ CONSIDERATIONS
+
+Items sequenced beyond V4. Not forgotten — logged here so V5 planning has a
 starting point.
 
 **Delivered in V2 (M7–M10):**
@@ -1775,23 +2310,26 @@ keyboard shortcuts, planning drawer content, HTTP endpoint widget.
 
 **Delivered in V3 (M11–M16):**
 Settings modal, first-run experience, git panel, AI provider system with
-Credential Manager security, Tauri updater, private distribution to testers.
+Credential Manager security, Tauri updater, distribution to testers.
 
-**Remaining — V4+ Considerations:**
+**Delivered in V4 (M17–M21):**
+Public release prep, OS notifications + audio, panel satellite windows,
+workspace import/export, git diff + branch management.
+
+**Remaining — V5+ Considerations:**
 
 | Feature | Notes | Discussed |
 |---|---|---|
 | Plugin/extension system | Panel registry already supports it architecturally | 2026-02-24 |
 | Cloud sync | Config sync across machines — requires backend infrastructure | 2026-02-24 |
-| Workspace import/export | Share workspace config with keys stripped | 2026-02-25 |
 | Cross-platform (macOS/Linux) | Rust backend Windows-specific commands need abstraction | 2026-02-25 |
-| True arbitrary grid | Rows × columns beyond 2-row max | 2026-02-24 |
-| Git diff view | Visual diff of changed files — deferred from V3 git panel | 2026-02-25 |
-| Git branch create/switch/merge | Beyond V3 scope of push/pull/commit | 2026-02-25 |
+| True arbitrary grid | Rows x columns beyond 2-row max | 2026-02-24 |
 | Full keyboard navigation | Focus into panel content, not just visual indicator | 2026-02-25 |
 | Token usage widget | No public API from providers — deferred indefinitely | 2026-02-25 |
-| Public repository + distribution | After tester phase is complete | 2026-02-25 |
 | Additional widget types | Test runner, build status | 2026-02-24 |
+| Git merge conflict resolution | Complex UX — deferred from M21 | 2026-02-28 |
+| Notification history / log | In-app log of past notifications | 2026-02-28 |
+| Satellite window position memory | Restore last position per panel type | 2026-02-28 |
 
 ---
 

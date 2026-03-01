@@ -1,7 +1,7 @@
 # ARCHITECTURE.md
 # Yggdrasil — Project Constitution
-# Last Updated: 2026-02-25
-# Version: 3.0
+# Last Updated: 2026-02-28
+# Version: 4.0
 # Status: ACTIVE
 
 ---
@@ -101,11 +101,10 @@ V2 delivered:
 - HTTP endpoint widget (polls any URL, shows status — covers VPS health checks)
 - Schema migration from V1 fixed 3-panel tuple to V2 flexible panel array
 
-### 1.5 V3 Scope (Active) — Tester Release
+### 1.5 V3 Scope — COMPLETED 2026-02-28
 
-V3 is the first version shared beyond the original developer. The goal is a complete,
-trustworthy experience for Windows testers with real configuration, real AI provider
-flexibility, and a safe update path.
+V3 delivered the first externally-shareable release with real configuration, AI provider
+flexibility, OS-level security for API keys, and a working update pipeline.
 
 V3 includes:
 - Settings modal (sidebar gear icon or Ctrl+,) — workspace config, accent colors,
@@ -126,14 +125,43 @@ V3 includes:
   helpful user-facing message, zero silent failures or blank panels
 - No telemetry, no analytics, no crash reporting to any server — local only
 
-V3 explicitly excludes:
-- Plugin/extension system (V4)
-- Cloud sync or user accounts (V4)
-- Workspace import/export (V4)
-- Cross-platform support (V4)
-- Git diff view, branch create/switch, merge operations (V4)
-- True arbitrary grid beyond two-row max (V4)
-- Public repository / public distribution (V4)
+V3 explicitly excluded (see V4 scope below):
+- Panel satellite windows / pop-out
+- OS notifications and audio
+- Workspace import/export
+- Git diff view and branch management
+- Plugin/extension system
+- Cloud sync
+- Cross-platform support
+
+### 1.6 V4 Scope (Active) — Extended Tester Release
+
+V4 deepens the tool with the features testers will ask for most: the ability to
+pop panels out to a second monitor as connected satellite windows, OS-level
+notifications so long-running tasks don't require babysitting, workspace
+portability via import/export, and a full git workflow with diff and branch
+management. V4 also handles the public release infrastructure cleanup.
+
+V4 includes:
+- Public release prep — clean repo history, sanitized docs, noreply email,
+  verified updater, TESTER_GUIDE.md updated
+- OS notifications (tauri-plugin-notification) + audio (Web Audio API) —
+  configurable per event: terminal command complete, AI response complete,
+  git operation complete, HTTP status change, update available
+- Panel satellite windows — pop any panel out to a native OS window that stays
+  connected to the workspace; placeholder holds the slot in main window;
+  recall collapses it back; PTY reconnects seamlessly for terminal panels
+- Workspace import/export — export config as portable JSON (keys stripped),
+  import on another machine or share with a teammate
+- Git diff view + branch management — visual file diff, branch create/switch,
+  extends M13 git panel
+
+V4 explicitly excludes:
+- Plugin/extension system (V5)
+- Cloud sync or user accounts (V5)
+- Cross-platform support (macOS/Linux) (V5)
+- True arbitrary grid beyond two-row max (V5)
+- Full keyboard navigation into panel content (V5)
 
 ---
 
@@ -345,7 +373,7 @@ export interface TerminalSettings extends PanelSettings {
   shell:           string;    // 'powershell.exe'
   cwd:             string;    // defaults to workspace projectRoot
   startupCommands: string[];  // commands run automatically on panel mount
-                              // e.g. ['cd C:/users/patri/Ratatoskr', 'claude']
+                              // e.g. ['cd C:/users/{username}/Ratatoskr', 'claude']
 }
 
 export interface WebviewSettings extends PanelSettings {
@@ -481,6 +509,44 @@ export interface WidgetState {
   value:    string;
   tooltip?: string;
 }
+
+// ── V4 ADDITIONS ──────────────────────────────────────────────────────────────
+
+// Satellite window system — runtime only, never persisted to config
+export interface SatelliteWindowInfo {
+  panelId:     string;      // slot ID in the main workspace window
+  windowLabel: string;      // Tauri window label e.g. 'satellite-slot-1'
+  panelType:   PanelType;
+  panelLabel:  string;      // for display in placeholder
+}
+
+// PanelSlot gains optional runtime satellite tracking (never written to config.json)
+// satelliteWindowLabel is runtime-only — stripped before any persistence call
+export interface PanelSlotRuntime extends PanelSlot {
+  satelliteWindowLabel?: string;  // set when panel is currently popped out
+}
+
+// Notification system
+export type NotificationEvent =
+  | 'terminal.command.complete'   // shell prompt reappears after a running command
+  | 'ai.response.complete'        // AI stream ends
+  | 'git.operation.complete'      // push/pull/commit/stage finishes
+  | 'http.status.change'          // HTTP widget status changes from last poll
+  | 'update.available';           // new app version found by updater
+
+export interface NotificationEventConfig {
+  event:   NotificationEvent;
+  label:   string;     // display name for settings UI
+  enabled: boolean;    // show OS notification for this event
+  audio:   boolean;    // play audio tone for this event
+}
+
+export interface NotificationConfig {
+  enabled:      boolean;                    // global notifications on/off
+  audioEnabled: boolean;                    // global audio on/off
+  audioVolume:  number;                     // 0.0 – 1.0
+  events:       NotificationEventConfig[];  // per-event config
+}
 ```
 
 ### 6.3 Workspace Schema
@@ -552,6 +618,7 @@ export interface AppConfig {
   shortcuts:         KeyboardShortcut[];  // V2
   providers:         AiProvider[];        // V3: AI provider configs (no keys — refs only)
   updater:           UpdaterConfig;       // V3: update check settings
+  notifications:     NotificationConfig; // V4: per-event notification + audio config
 }
 ```
 
@@ -572,7 +639,12 @@ export type ShortcutAction =
   | 'panel.focus.2'            // focus panel slot 2
   | 'panel.focus.3'            // focus panel slot 3 (V2 layouts may have 4 panels)
   | 'drawer.toggle'            // open/close planning drawer
-  | 'layout.preset.cycle';     // cycle through layout presets
+  | 'layout.preset.cycle'      // cycle through layout presets
+  | 'panel.satellite.0'        // V4: pop out panel slot 0 to satellite window
+  | 'panel.satellite.1'        // V4: pop out panel slot 1 to satellite window
+  | 'panel.satellite.2'        // V4: pop out panel slot 2 to satellite window
+  | 'panel.satellite.3'        // V4: pop out panel slot 3 to satellite window
+  | 'panel.recall.all';        // V4: recall all satellite windows back to main
 
 export interface KeyboardShortcut {
   action:  ShortcutAction;
@@ -613,13 +685,13 @@ shortcut registration. Shortcuts config lives in AppConfig and is user-editable 
       "name": "Ratatoskr",
       "icon": "⚡",
       "accentColor": "#00ff88",
-      "projectRoot": "C:/users/patri/Ratatoskr",
+      "projectRoot": "C:/users/{username}/Ratatoskr",
       "layout": {
         "panels": [
           {
             "id": "slot-0",
             "type": "terminal",
-            "settings": { "shell": "powershell.exe", "cwd": "C:/users/patri/Ratatoskr" }
+            "settings": { "shell": "powershell.exe", "cwd": "C:/users/{username}/Ratatoskr" }
           },
           {
             "id": "slot-1",
@@ -646,13 +718,13 @@ shortcut registration. Shortcuts config lives in AppConfig and is user-editable 
           "type": "git",
           "label": "Git",
           "pollInterval": 15000,
-          "settings": { "repoPath": "C:/users/patri/Ratatoskr" }
+          "settings": { "repoPath": "C:/users/{username}/Ratatoskr" }
         }
       ],
       "onActivate": {
-        "terminalStartupCommands": ["cd C:/users/patri/Ratatoskr"],
+        "terminalStartupCommands": ["cd C:/users/{username}/Ratatoskr"],
         "environmentVariables": { "PROJECT": "ratatoskr" },
-        "claudeDesktopProjectPath": "C:/users/patri/Ratatoskr"
+        "claudeDesktopProjectPath": "C:/users/{username}/Ratatoskr"
       },
       "createdAt": "2026-02-24T00:00:00.000Z",
       "updatedAt": "2026-02-24T00:00:00.000Z"
@@ -977,6 +1049,30 @@ export async function gitCommit(repoPath: string, message: string): Promise<void
 export async function gitPush(repoPath: string): Promise<void>
 export async function gitPull(repoPath: string): Promise<void>
 export async function gitCurrentBranch(repoPath: string): Promise<string>
+
+// V4 additions:
+
+// src/shell/satellite.ts
+// Satellite windows are native OS windows — created/destroyed via Tauri WebviewWindow API
+export async function openSatelliteWindow(
+  panelId:     string,    // slot ID — used as part of window label
+  panelType:   PanelType,
+  windowLabel: string,    // unique Tauri window identifier e.g. 'satellite-slot-1'
+  ptyId?:      string,    // for terminal panels — existing PTY ID to reconnect
+): Promise<void>
+export async function closeSatelliteWindow(windowLabel: string): Promise<void>
+export async function getSatelliteWindows(): Promise<string[]>  // returns open window labels
+
+// src/shell/notification.ts
+export async function requestNotificationPermission(): Promise<boolean>
+export async function sendOsNotification(title: string, body: string): Promise<void>
+// Audio is handled entirely in the frontend via Web Audio API — no Rust command needed
+
+// V4 extensions to src/shell/git.ts (adds to existing V3 commands):
+export async function gitDiff(repoPath: string, filePath: string): Promise<GitDiff>
+export async function gitListBranches(repoPath: string): Promise<GitBranch[]>
+export async function gitCreateBranch(repoPath: string, name: string): Promise<void>
+export async function gitSwitchBranch(repoPath: string, name: string): Promise<void>
 ```
 
 ---
@@ -1003,6 +1099,8 @@ Yggdrasil/
 │   │   │   ├── credentials.rs  # V3: Windows Credential Manager — keys never leave Rust
 │   │   │   ├── ai.rs           # V3: API call execution Rust-side
 │   │   │   ├── updater.rs      # V3: Tauri updater integration
+│   │   │   ├── satellite.rs    # V4: satellite window create/destroy
+│   │   │   └── notification.rs # V4: OS notification via tauri-plugin-notification
 │   │   │   ├── git.rs
 │   │   │   ├── docker.rs
 │   │   │   ├── http.rs
@@ -1033,9 +1131,11 @@ Yggdrasil/
 │   │   ├── docker.ts
 │   │   ├── http.ts
 │   │   ├── workspace.ts
-│   │   ├── credentials.ts  # V3: Credential Manager invoke wrappers
-│   │   ├── ai.ts           # V3: AI streaming invoke wrappers
-│   │   ├── updater.ts      # V3: Tauri updater check/install wrappers
+│   │   ├── credentials.ts  # V3
+│   │   ├── ai.ts           # V3
+│   │   ├── updater.ts      # V3
+│   │   ├── satellite.ts    # V4: satellite window open/close/list
+│   │   ├── notification.ts # V4: OS notification permission + dispatch
 │   │   └── claude.ts
 │   │
 │   ├── panels/
@@ -1070,12 +1170,16 @@ Yggdrasil/
 │   │   │   ├── AiChatMessages.tsx
 │   │   │   ├── ai-chat.types.ts
 │   │   │   └── ai-chat.module.css
-│   │   └── git/                        # V3: git operations panel
-│   │       ├── GitPanel.tsx
-│   │       ├── GitFileList.tsx
-│   │       ├── GitCommitForm.tsx
-│   │       ├── git.types.ts
-│   │       └── git.module.css
+│   │   ├── git/                        # V3: git operations panel
+│   │   │   ├── GitPanel.tsx
+│   │   │   ├── GitFileList.tsx
+│   │   │   ├── GitCommitForm.tsx
+│   │   │   ├── GitDiff.tsx             # V4: visual diff view
+│   │   │   ├── BranchManager.tsx       # V4: branch list, create, switch
+│   │   │   ├── git.types.ts
+│   │   │   └── git.module.css
+│   │   ├── SatellitePlaceholder.tsx    # V4: placeholder rendered in main when panel is popped out
+│   │   └── SatelliteShell.tsx          # V4: minimal wrapper rendered in satellite window mode
 │   │
 │   ├── workspace/
 │   │   ├── Sidebar.tsx
@@ -1097,6 +1201,7 @@ Yggdrasil/
 │   │       ├── ShortcutsTab.tsx
 │   │       ├── ProvidersTab.tsx
 │   │       ├── AppearanceTab.tsx
+│   │       ├── NotificationsTab.tsx  # V4: per-event notification + audio config
 │   │       └── AboutTab.tsx
 │   │
 │   ├── widgets/
@@ -1115,9 +1220,11 @@ Yggdrasil/
 │   │   ├── useWorkspace.ts
 │   │   ├── usePanel.ts
 │   │   ├── useWidgets.ts
-│   │   ├── useKeyboardShortcuts.ts  # V2: app-level shortcut listener
-│   │   ├── useLayoutDrag.ts         # V2: drag handle resize logic
-│   │   └── useMilestoneReader.ts    # V2: IMPLEMENTATION.md file watcher + parser
+│   │   ├── useKeyboardShortcuts.ts  # V2
+│   │   ├── useLayoutDrag.ts         # V2
+│   │   ├── useMilestoneReader.ts    # V2
+│   │   ├── useSatellitePanel.ts     # V4: satellite lifecycle — pop out, recall, state
+│   │   └── useNotifications.ts      # V4: notification dispatcher, event subscription
 │   │
 │   ├── theme/
 │   │   ├── variables.css
@@ -1265,6 +1372,42 @@ the wrong milestone or fail silently.
 section shows a friendly empty state rather than an error. The established file format
 is documented in IMPLEMENTATION.md itself and enforced by CLAUDE.md.
 
+## 15.8 Satellite Window + Native Webview Panels
+
+**Risk:** AiChat panels in webview mode and Webview panels are Tauri child webviews.
+A Tauri child webview cannot be moved from one window to another. Popping out a
+native webview panel means the satellite must open a new webview at the same URL —
+it is not the same webview instance.
+
+**Mitigation:** Document clearly that session continuity for webview-based AI panels
+in satellite mode is the website's responsibility (cookies/session storage). The
+satellite opens a fresh webview at the same URL. For API-mode AI panels and all other
+panel types, satellite is seamless. This distinction is noted in the satellite
+placeholder UI when the panel type is webview-based.
+
+## 15.9 Satellite Window + PTY Reconnect
+
+**Risk:** Terminal satellite window opens a new xterm.js instance that must reconnect
+to the existing PTY process in Rust. If the PTY ID is not correctly passed to the
+satellite window, the terminal renders but has no shell.
+
+**Mitigation:** PTY ID is passed to the satellite window via URL query parameter at
+open time (e.g. `?satellite=true&panelId=slot-0&ptyId=abc123`). The SatelliteShell
+reads these params and passes ptyId to TerminalPanel via settings. Terminal panel
+already supports reconnecting to an existing PTY ID — it checks whether ptyId is
+already spawned before calling spawnShell.
+
+## 15.10 OS Notification Permission on Windows
+
+**Risk:** Windows may prompt the user for notification permission on first use.
+If the user declines, OS notifications will silently fail.
+
+**Mitigation:** requestNotificationPermission() is called once on first notification
+event, result is stored in NotificationConfig. If declined, the app gracefully
+continues without notifications — no error state, no repeated prompts. The
+NotificationsTab in Settings shows current permission status and provides a
+"Re-request Permission" button.
+
 ---
 
 ## 16. V3 SECURITY MODEL
@@ -1321,5 +1464,5 @@ version metadata — no executable code is fetched during the check itself.
 ---
 
 *End of ARCHITECTURE.md*
-*Version 1.1 — Updated 2026-02-24*
+*Version 4.0 — Updated 2026-02-28*
 *This document is the constitution. Changes require a DECISIONS.md entry first.*

@@ -1405,6 +1405,234 @@ reverting to private has zero cost. Clean repo at release time is the simplest p
 
 ---
 
+## D044 — Satellite windows: same React app, URL param mode detection
+**Date:** 2026-02-28
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Satellite windows load the same Yggdrasil React app via `index.html` with URL
+query parameters (`?satellite=true&panelId=...&panelType=...&workspaceId=...`)
+to signal satellite mode. `App.tsx` detects these params and renders `SatelliteShell`
+instead of the full app shell.
+
+**Alternatives Considered:**
+- Separate entry point / HTML file for satellite windows — cleaner separation but
+  requires a second Vite bundle entry, extra build config, and duplication of
+  TypeScript type imports. Rejected for complexity.
+- IPC-only approach — satellite renders a blank window and receives all panel state
+  via Tauri events from the main window. Rejected because it creates a tight
+  real-time coupling; if the main window is busy, the satellite stalls.
+
+**Rationale:**
+One bundle, one entry point. The satellite reads its own workspace config independently
+via `loadConfig()` and only needs the URL params to know which panel to render and
+which PTY to reconnect. Tauri events are used only for recall signaling — not for
+panel state. This keeps the satellite self-sufficient and resilient.
+
+**Implications:**
+- `App.tsx` checks `new URLSearchParams(window.location.search).get('satellite')`
+- SatelliteShell renders when satellite=true, full app shell otherwise
+- PTY ID passed as `&ptyId=` param — TerminalPanel reconnects to existing PTY
+- Satellite reads config independently — no dependency on main window's React state
+- Recall signal: satellite emits `panel:recall-requested:{panelId}` Tauri event,
+  main window listener dispatches SATELLITE_CLOSE
+
+---
+
+## D045 — Satellite windows: runtime-only state, never persisted
+**Date:** 2026-02-28
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+`satellitePanels` tracking which panel slots are currently popped out is runtime-only
+state in WorkspaceContext. It is never written to config.json. On app restart, all
+panels reopen in the main window in their normal slots.
+
+**Alternatives Considered:**
+- Persist satellite state — remember which panels were popped out and restore on
+  restart. Rejected because satellite windows' screen positions can't be reliably
+  restored across monitor configuration changes, and a panel slot rendering as a
+  placeholder on startup (with no satellite window to match it) would be confusing.
+
+**Rationale:**
+The satellite feature is a session-level convenience, not a persistent layout
+preference. Restart = clean slate. This avoids a class of hard-to-debug state
+synchronization bugs and keeps the config schema clean.
+
+**Implications:**
+- `satellitePanels: Record<string, SatelliteWindowInfo>` lives in WorkspaceContext
+  reducer state only — never in AppConfig
+- On app close, all satellite windows are closed via `get_open_satellite_windows()`
+  + `close_satellite_window()` before the Tauri process exits
+- The layout grid on startup always renders all panels in their slots
+
+---
+
+## D046 — Satellite PTY reconnect: ptyId via URL param + runtime settings field
+**Date:** 2026-02-28
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+When a terminal panel is popped out to a satellite window, the PTY ID is passed
+via URL query parameter (`&ptyId=abc123`). TerminalPanel exposes its current PTY ID
+by calling `onSettingsChange({ ...settings, _ptyId: currentPtyId })` after the PTY
+spawns. The leading underscore marks it as a runtime-only field. `saveConfig()` strips
+any fields beginning with `_` before writing to disk.
+
+**Alternatives Considered:**
+- Tauri event to push PTY ID to satellite — requires the satellite to listen for an
+  event before it can render anything. Race condition risk on slow starts. Rejected.
+- Shared Rust state / mutex storing PTY ID by panel ID — more coupling, more Rust
+  surface area. Rejected in favor of the existing settings channel.
+
+**Rationale:**
+`onSettingsChange` is already the established channel for a panel to communicate
+runtime state upward without violating the panel contract. Using a `_`-prefixed
+field as a runtime-only convention is a clean extension that doesn't require new
+APIs. Stripping `_` fields in saveConfig() is a one-line guard that keeps the
+convention enforced at the persistence layer.
+
+**Implications:**
+- TerminalPanel calls `onSettingsChange` with `_ptyId` after PTY spawns
+- PanelContainer reads `settings._ptyId` when building satellite URL
+- saveConfig() strips keys starting with `_` from all PanelSlot settings before write
+- SatelliteShell passes ptyId URL param to TerminalPanel via settings prop
+- TerminalPanel checks if ptyId already exists in Rust before calling spawnShell
+
+---
+
+## D047 — Satellite webview panels: new webview instance, session continuity is website responsibility
+**Date:** 2026-02-28
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+AiChat panels in webview mode and Webview panels popped out to a satellite window
+open a NEW Tauri child webview at the same URL. They are not the same webview
+instance as was in the main window. The SatellitePlaceholder in the main window
+shows a clear note explaining this. No attempt is made to transfer session state.
+
+**Alternatives Considered:**
+- Move the existing webview into the satellite window — Tauri child webviews cannot
+  be reparented to a different window. Not technically possible. Rejected.
+- Serialize and restore session state (cookies, localStorage) — requires privileged
+  access to the webview's storage, complex, and brittle across site updates. Rejected.
+
+**Rationale:**
+This is a constraint of the Tauri child webview architecture, not a design choice.
+Documenting it clearly in the UI prevents user confusion. For most AI chat uses,
+the session is preserved in the site's own cookies — the user will be logged in
+and their history will be there. The "new instance" behavior is only disruptive
+if the user had an active streaming response mid-pop, which is an edge case.
+
+**Implications:**
+- SatellitePlaceholder for webview-mode panels shows:
+  "Web session continues in satellite window. Recall will open a fresh session."
+- SatelliteShell creates a new Tauri child webview at the provider's webviewUrl
+- This limitation is documented in ARCHITECTURE.md Section 15.8
+
+---
+
+## D048 — Notifications: Web Audio API oscillator, no audio files
+**Date:** 2026-02-28
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Audio notifications use the Web Audio API to generate a short oscillator tone
+in the frontend. No audio files are bundled, no external audio assets are loaded,
+no Rust/Tauri audio dependency is needed.
+
+**Alternatives Considered:**
+- Bundle a short .wav or .mp3 chime file — simple but adds binary assets to the
+  bundle, complicates distribution, and is harder for users to conceptually configure
+  (they'd need to understand file formats).
+- Tauri audio plugin — adds a Cargo dependency and OS-level audio API surface for
+  something the Web Audio API handles natively. Overkill. Rejected.
+
+**Rationale:**
+The Web Audio API generates a clean, professional chime with ~10 lines of TypeScript.
+No assets, no dependencies, no Cargo changes. Volume is trivially controllable via
+the GainNode. The oscillator approach also allows future customization (frequency,
+envelope, waveform) from the settings UI without any file management.
+
+**Implications:**
+- `useNotifications.ts` creates an AudioContext on first audio event
+- Oscillator: 880Hz, 0.3s duration, exponential gain ramp to silence
+- AudioContext is reused across notifications (created once, not per-notification)
+- Volume is controlled via `gain.gain.value = config.audioVolume`
+- No new Cargo dependencies, no bundle assets
+
+---
+
+## D049 — Notifications: global master switch with per-event granularity
+**Date:** 2026-02-28
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+NotificationConfig has a global `enabled` boolean and a global `audioEnabled`
+boolean that act as master switches, plus per-event `enabled` and `audio` toggles.
+Both levels must be true for an action to fire. Defaults: all events enabled,
+audio enabled only for terminal.command.complete.
+
+**Alternatives Considered:**
+- Per-event only, no global toggle — forces the user to toggle each event individually
+  when they want to silence everything temporarily. Poor UX. Rejected.
+- Global only, no per-event — no granularity. A developer who wants git notifications
+  but not AI response notifications has no control. Rejected.
+
+**Rationale:**
+Two-level control is the standard notification UX pattern (see Slack, VS Code).
+The global switch is the "do not disturb" control. Per-event settings are permanent
+preferences. They serve different intents and should not be conflated.
+
+**Implications:**
+- `useNotifications.notify()` checks `config.enabled` first, exits early if false
+- Then checks `event.enabled`, exits early if false
+- Audio path checks `config.audioEnabled` AND `event.audio`
+- Default audio on only for terminal.command.complete — the most common "go do
+  something else while this runs" use case
+
+---
+
+## D050 — Workspace export: strip apiKeyRef, reset projectRoot, new UUID on import
+**Date:** 2026-02-28
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Workspace export strips `apiKeyRef` from any AI provider references (keys must
+never leave the local machine), resets `projectRoot` to empty string (paths don't
+transfer between machines), and assigns a new UUID on import (prevents ID collisions
+in the destination config).
+
+**Alternatives Considered:**
+- Export with keys — rejected immediately. This would be a critical security defect.
+  Keys in a shareable JSON file are plaintext secrets waiting to be leaked.
+- Preserve projectRoot in export — rejected because absolute Windows paths are
+  machine-specific. Importing a path like C:/users/alice/project on a machine that
+  has no such path silently breaks the workspace. Reset and prompt is always correct.
+- Preserve UUID on import — rejected because UUID collisions across machines would
+  cause silent workspace corruption if the same workspace is imported twice.
+
+**Rationale:**
+The export is a template, not a clone. The recipient machine gets the workspace
+structure, panel layout, and widget configuration — but must supply their own
+keys and project folder. This is the correct mental model for portability.
+
+**Implications:**
+- `WorkspaceExport` type omits `id` and resets `projectRoot` to ''
+- `apiKeyRef` stripped from any providers included in the export
+- Import flow: assigns new `uuid()`, prompts folder picker for projectRoot
+- If exported workspace references API-mode providers: import prompts for keys
+- Export file is plaintext JSON — user may inspect and share freely without risk
+
+---
+
 *End of DECISIONS.md*
 *Version 1.0 — Created 2026-02-24*
 *Entries are never deleted. Superseded entries are marked [SUPERSEDED].*

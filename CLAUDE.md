@@ -1,7 +1,7 @@
 # CLAUDE.md
 # Yggdrasil — Session Enforcer & Pre-Flight Checklist
-# Last Updated: 2026-02-25
-# Version: 2.0
+# Last Updated: 2026-02-28
+# Version: 3.0
 
 ---
 
@@ -22,7 +22,7 @@ No exceptions. No shortcuts. No skipping steps because "you remember from last t
 
 ### Step 1 — Read ARCHITECTURE.md
 Read the full document. This is the constitution. Understand:
-- The current active scope and hard boundaries (Section 1.5 for V3)
+- The current active scope and hard boundaries (Section 1.6 for V4)
 - The panel contract rules (Section 7.1)
 - The file structure (Section 13) — new files go where the structure says
 - The core data schemas (Section 6) — nothing gets passed that doesn't conform
@@ -122,6 +122,11 @@ The panel contract (ARCHITECTURE.md Section 7.1) is never violated. Ever.
 - Panels never import from another panel's directory
 - Panels never dispatch to global state directly
 - Panels clean up ALL resources on unmount — this is not optional
+
+**V4 satellite extension:** Panels may call `onSettingsChange` with `_`-prefixed
+runtime-only fields (e.g. `_ptyId`) to surface runtime state upward. These fields
+are stripped by `saveConfig()` before persistence. This is not a contract violation —
+it uses the existing `onSettingsChange` channel. See D046.
 
 If a feature seems to require violating the panel contract, stop.
 Log the conflict in DECISIONS.md and discuss with the user before proceeding.
@@ -259,8 +264,8 @@ time pressure, or "just this once" reasoning.
 - Panel contract is never violated
 - TypeScript errors are never committed
 - User corrections always trigger an ERRORS.md entry
-- No file is created outside ARCHITECTURE.md Section 12 without a DECISIONS.md entry
-- V1 scope is respected — out-of-scope features go to IMPLEMENTATION.md Appendix A
+- No file is created outside ARCHITECTURE.md Section 13 without a DECISIONS.md entry
+- Active version scope is respected — out-of-scope features go to IMPLEMENTATION.md Appendix A
 
 ---
 
@@ -268,7 +273,7 @@ time pressure, or "just this once" reasoning.
 
 | Question | Answer |
 |---|---|
-| Where do new files go? | ARCHITECTURE.md Section 12 |
+| Where do new files go? | ARCHITECTURE.md Section 13 |
 | What are the TypeScript schemas? | ARCHITECTURE.md Section 6 |
 | What is the panel contract? | ARCHITECTURE.md Section 7.1 |
 | What CSS variables exist? | ARCHITECTURE.md Section 13.1 |
@@ -276,12 +281,12 @@ time pressure, or "just this once" reasoning.
 | What's the definition of done? | IMPLEMENTATION.md active milestone |
 | Has this error been seen before? | ERRORS.md |
 | Has this decision been made? | DECISIONS.md |
-| What's out of scope for V3? | ARCHITECTURE.md Section 1.5 + IMPLEMENTATION.md Appendix A |
+| What's out of scope for V4? | ARCHITECTURE.md Section 1.6 + IMPLEMENTATION.md Appendix A |
 | API key security rules? | ARCHITECTURE.md Section 16 — read before any credentials work |
 | Privacy rules? | ARCHITECTURE.md Section 1.2 + Section 16.2 |
 
 ---
 
 *End of CLAUDE.md*
-*Version 2.0 — Updated 2026-02-25 for V3*
+*Version 3.0 — Updated 2026-02-28 for V4*
 *This file runs first. Every session. No exceptions.*

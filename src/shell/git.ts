@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
+import type { GitBranchInfo } from '../panels/git/git.types';
 
 export async function getGitStatus(repoPath: string): Promise<Record<string, string>> {
   return invoke<Record<string, string>>('get_git_status', { repoPath });
@@ -26,4 +27,20 @@ export async function gitPull(repoPath: string): Promise<string> {
 
 export async function getCurrentBranch(repoPath: string): Promise<string> {
   return invoke<string>('git_current_branch', { repoPath });
+}
+
+export async function gitDiff(repoPath: string, filePath: string): Promise<string> {
+  return invoke<string>('git_diff', { repoPath, filePath });
+}
+
+export async function gitListBranches(repoPath: string): Promise<GitBranchInfo[]> {
+  return invoke<GitBranchInfo[]>('git_list_branches', { repoPath });
+}
+
+export async function gitCreateBranch(repoPath: string, name: string): Promise<void> {
+  return invoke<void>('git_create_branch', { repoPath, name });
+}
+
+export async function gitSwitchBranch(repoPath: string, name: string): Promise<void> {
+  return invoke<void>('git_switch_branch', { repoPath, name });
 }

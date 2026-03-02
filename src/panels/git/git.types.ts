@@ -3,3 +3,9 @@ export interface GitFileEntry {
   indexStatus: string;   // first char of porcelain code
   workTreeStatus: string; // second char of porcelain code
 }
+
+export interface GitBranchInfo {
+  name: string;
+  isCurrent: boolean;
+  lastCommit: string;
+}

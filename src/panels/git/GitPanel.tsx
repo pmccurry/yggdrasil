@@ -9,9 +9,16 @@ import {
   gitCommit,
   gitPush,
   gitPull,
+  gitDiff,
+  gitListBranches,
+  gitCreateBranch,
+  gitSwitchBranch,
 } from '../../shell/git';
+import type { GitBranchInfo } from './git.types';
 import GitFileList from './GitFileList';
 import GitCommitForm from './GitCommitForm';
+import GitDiff from './GitDiff';
+import BranchManager from './BranchManager';
 import { emitNotification } from '../../utils/notify';
 import styles from './GitPanel.module.css';
 
@@ -25,6 +32,10 @@ function GitPanel({ settings, projectRoot }: PanelProps) {
   const [error, setError] = useState<string | null>(null);
   const [operationLoading, setOperationLoading] = useState(false);
   const [operationMessage, setOperationMessage] = useState<string | null>(null);
+  const [view, setView] = useState<'files' | 'diff' | 'branches'>('files');
+  const [diffFile, setDiffFile] = useState<string>('');
+  const [diffContent, setDiffContent] = useState<string>('');
+  const [branches, setBranches] = useState<GitBranchInfo[]>([]);
 
   const cancelledRef = useRef(false);
 
@@ -170,6 +181,66 @@ function GitPanel({ settings, projectRoot }: PanelProps) {
     }
   }, [repoPath, refresh]);
 
+  const handleFileClick = useCallback(async (path: string) => {
+    if (!repoPath) return;
+    setOperationLoading(true);
+    try {
+      const raw = await gitDiff(repoPath, path);
+      setDiffFile(path);
+      setDiffContent(raw);
+      setView('diff');
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setOperationLoading(false);
+    }
+  }, [repoPath]);
+
+  const handleShowBranches = useCallback(async () => {
+    if (!repoPath) return;
+    setOperationLoading(true);
+    try {
+      const list = await gitListBranches(repoPath);
+      setBranches(list);
+      setView('branches');
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setOperationLoading(false);
+    }
+  }, [repoPath]);
+
+  const handleCreateBranch = useCallback(async (name: string) => {
+    if (!repoPath) return;
+    setOperationLoading(true);
+    try {
+      await gitCreateBranch(repoPath, name);
+      emitNotification('git.operation.complete', 'Git', `Created branch: ${name}`);
+      await refresh();
+      const list = await gitListBranches(repoPath);
+      setBranches(list);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setOperationLoading(false);
+    }
+  }, [repoPath, refresh]);
+
+  const handleSwitchBranch = useCallback(async (name: string) => {
+    if (!repoPath) return;
+    setOperationLoading(true);
+    try {
+      await gitSwitchBranch(repoPath, name);
+      emitNotification('git.operation.complete', 'Git', `Switched to: ${name}`);
+      await refresh();
+      setView('files');
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setOperationLoading(false);
+    }
+  }, [repoPath, refresh]);
+
   if (!repoPath) {
     return (
       <div className={styles.emptyState}>
@@ -207,52 +278,65 @@ function GitPanel({ settings, projectRoot }: PanelProps) {
         <span className={styles.branchIcon}>&#x2387;</span>
         <span className={styles.branchName}>{branch || 'HEAD'}</span>
         <div style={{ marginLeft: 'auto', display: 'flex', gap: '4px' }}>
-          <button
-            className={styles.actionBtn}
-            onClick={handlePull}
-            disabled={operationLoading}
-            title="Pull"
-          >
+          <button className={styles.actionBtn} onClick={handleShowBranches} disabled={operationLoading} title="Branches">
+            Branches
+          </button>
+          <button className={styles.actionBtn} onClick={handlePull} disabled={operationLoading} title="Pull">
             Pull
           </button>
-          <button
-            className={styles.actionBtn}
-            onClick={handlePush}
-            disabled={operationLoading}
-            title="Push"
-          >
+          <button className={styles.actionBtn} onClick={handlePush} disabled={operationLoading} title="Push">
             Push
           </button>
         </div>
       </div>
 
-      <div className={styles.content}>
-        {operationMessage && (
-          <div className={styles.cleanState}>{operationMessage}</div>
-        )}
-
-        {!hasChanges && !operationMessage && (
-          <div className={styles.cleanState}>Working tree clean</div>
-        )}
-
-        <GitFileList
-          files={stagedFiles}
-          staged={true}
-          onToggle={handleUnstage}
+      {view === 'diff' ? (
+        <GitDiff
+          filePath={diffFile}
+          diff={diffContent}
+          onBack={() => setView('files')}
         />
-        <GitFileList
-          files={unstagedFiles}
-          staged={false}
-          onToggle={handleStage}
+      ) : view === 'branches' ? (
+        <BranchManager
+          branches={branches}
+          hasDirtyTree={stagedFiles.length > 0 || unstagedFiles.length > 0}
+          onSwitch={handleSwitchBranch}
+          onCreate={handleCreateBranch}
+          onBack={() => setView('files')}
         />
-      </div>
+      ) : (
+        <>
+          <div className={styles.content}>
+            {operationMessage && (
+              <div className={styles.cleanState}>{operationMessage}</div>
+            )}
 
-      {stagedFiles.length > 0 && (
-        <GitCommitForm
-          onCommit={handleCommit}
-          disabled={stagedFiles.length === 0}
-          loading={operationLoading}
-        />
+            {!hasChanges && !operationMessage && (
+              <div className={styles.cleanState}>Working tree clean</div>
+            )}
+
+            <GitFileList
+              files={stagedFiles}
+              staged={true}
+              onToggle={handleUnstage}
+              onFileClick={handleFileClick}
+            />
+            <GitFileList
+              files={unstagedFiles}
+              staged={false}
+              onToggle={handleStage}
+              onFileClick={handleFileClick}
+            />
+          </div>
+
+          {stagedFiles.length > 0 && (
+            <GitCommitForm
+              onCommit={handleCommit}
+              disabled={stagedFiles.length === 0}
+              loading={operationLoading}
+            />
+          )}
+        </>
       )}
     </div>
   );

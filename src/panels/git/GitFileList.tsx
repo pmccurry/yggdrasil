@@ -27,9 +27,10 @@ interface GitFileListProps {
   files: GitFileEntry[];
   staged: boolean;
   onToggle: (path: string) => void;
+  onFileClick?: (path: string) => void;
 }
 
-function GitFileList({ files, staged, onToggle }: GitFileListProps) {
+function GitFileList({ files, staged, onToggle, onFileClick }: GitFileListProps) {
   if (files.length === 0) return null;
 
   return (
@@ -40,14 +41,14 @@ function GitFileList({ files, staged, onToggle }: GitFileListProps) {
       {files.map((file) => {
         const code = staged ? file.indexStatus : file.workTreeStatus;
         return (
-          <div key={file.path} className={styles.fileRow}>
+          <div key={file.path} className={styles.fileRow} onClick={() => onFileClick?.(file.path)} style={{ cursor: onFileClick ? 'pointer' : 'default' }}>
             <span className={`${styles.statusBadge} ${statusClass(code)}`}>
               {statusLabel(code)}
             </span>
             <span className={styles.filePath}>{file.path}</span>
             <button
               className={styles.toggleBtn}
-              onClick={() => onToggle(file.path)}
+              onClick={(e) => { e.stopPropagation(); onToggle(file.path); }}
               title={staged ? 'Unstage' : 'Stage'}
             >
               {staged ? '\u2212' : '+'}

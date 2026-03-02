@@ -172,3 +172,114 @@ pub async fn git_current_branch(repo_path: String) -> Result<String, String> {
     let branch = String::from_utf8_lossy(&output.stdout).trim().to_string();
     Ok(branch)
 }
+
+#[tauri::command]
+pub async fn git_diff(repo_path: String, file_path: String) -> Result<String, String> {
+    let mut cmd = Command::new("git");
+    cmd.args(["diff", "HEAD", "--", &file_path])
+        .current_dir(&repo_path);
+
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000);
+
+    let output = cmd
+        .output()
+        .map_err(|e| format!("Failed to run git diff: {}", e))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+
+    if !output.status.success() {
+        return Err(format!("git diff failed: {}", stderr));
+    }
+
+    Ok(stdout)
+}
+
+#[derive(serde::Serialize)]
+pub struct GitBranchInfo {
+    pub name: String,
+    pub is_current: bool,
+    pub last_commit: String,
+}
+
+#[tauri::command]
+pub async fn git_list_branches(repo_path: String) -> Result<Vec<GitBranchInfo>, String> {
+    let mut cmd = Command::new("git");
+    cmd.args(["branch", "--format=%(HEAD) %(refname:short) %(subject)"])
+        .current_dir(&repo_path);
+
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000);
+
+    let output = cmd
+        .output()
+        .map_err(|e| format!("Failed to run git branch: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(format!("git branch failed: {}", stderr));
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+    let mut branches = Vec::new();
+
+    for line in stdout.lines() {
+        let line = line.trim();
+        if line.is_empty() { continue; }
+
+        let is_current = line.starts_with('*');
+        let rest = &line[2..];
+        let mut parts = rest.splitn(2, ' ');
+        let name = parts.next().unwrap_or("").to_string();
+        let last_commit = parts.next().unwrap_or("").to_string();
+
+        if !name.is_empty() {
+            branches.push(GitBranchInfo { name, is_current, last_commit });
+        }
+    }
+
+    Ok(branches)
+}
+
+#[tauri::command]
+pub async fn git_create_branch(repo_path: String, name: String) -> Result<(), String> {
+    let mut cmd = Command::new("git");
+    cmd.args(["checkout", "-b", &name])
+        .current_dir(&repo_path);
+
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000);
+
+    let output = cmd
+        .output()
+        .map_err(|e| format!("Failed to create branch: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(format!("git checkout -b failed: {}", stderr));
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn git_switch_branch(repo_path: String, name: String) -> Result<(), String> {
+    let mut cmd = Command::new("git");
+    cmd.args(["checkout", &name])
+        .current_dir(&repo_path);
+
+    #[cfg(windows)]
+    cmd.creation_flags(0x08000000);
+
+    let output = cmd
+        .output()
+        .map_err(|e| format!("Failed to switch branch: {}", e))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+        return Err(format!("git checkout failed: {}", stderr));
+    }
+
+    Ok(())
+}

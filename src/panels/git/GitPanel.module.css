@@ -237,3 +237,249 @@
   font-size: var(--font-size-sm);
   text-align: center;
 }
+
+/* ── Diff View ──────────────────────────────────── */
+
+.diffContainer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--bg-surface);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+}
+
+.diffHeader {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  min-height: var(--panel-header-height);
+  background-color: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-subtle);
+  gap: 8px;
+}
+
+.backBtn {
+  background: none;
+  border: 1px solid var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  padding: 2px 8px;
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background-color 0.1s, color 0.1s;
+}
+
+.backBtn:hover {
+  background-color: var(--bg-overlay);
+  color: var(--text-primary);
+}
+
+.diffFileName {
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diffContent {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.diffLine {
+  display: flex;
+  min-height: 20px;
+  line-height: 20px;
+  white-space: pre;
+}
+
+.diffPrefix {
+  width: 20px;
+  flex-shrink: 0;
+  text-align: center;
+  color: var(--text-muted);
+  user-select: none;
+}
+
+.diffText {
+  flex: 1;
+  padding-right: 10px;
+}
+
+.diffAdded {
+  background-color: color-mix(in srgb, var(--status-ok) 12%, transparent);
+}
+
+.diffAdded .diffPrefix {
+  color: var(--status-ok);
+}
+
+.diffRemoved {
+  background-color: color-mix(in srgb, var(--status-error) 12%, transparent);
+}
+
+.diffRemoved .diffPrefix {
+  color: var(--status-error);
+}
+
+.diffHunk {
+  background-color: color-mix(in srgb, var(--accent) 8%, transparent);
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.diffMeta {
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.diffBinary {
+  padding: 20px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* ── Branch Manager ─────────────────────────────── */
+
+.branchContainer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--bg-surface);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+}
+
+.branchCreateRow {
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.branchInput {
+  flex: 1;
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  padding: 4px 8px;
+  outline: none;
+}
+
+.branchInput:focus {
+  border-color: var(--accent-border);
+}
+
+.branchInput::placeholder {
+  color: var(--text-faint);
+}
+
+.branchCreateBtn {
+  background-color: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  border-radius: 4px;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.branchCreateBtn:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.branchCreateBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.branchList {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.branchRow {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  gap: 8px;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.branchRow:hover {
+  background-color: var(--bg-overlay);
+}
+
+.branchCurrent {
+  cursor: default;
+}
+
+.branchCurrent .branchRowName {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.branchRowName {
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.branchRowCommit {
+  flex: 1;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
+}
+
+.confirmOverlay {
+  position: absolute;
+  inset: 0;
+  background-color: color-mix(in srgb, var(--bg-surface) 80%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.confirmDialog {
+  background-color: var(--bg-elevated);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  padding: 16px;
+  max-width: 300px;
+  text-align: center;
+}
+
+.confirmDialog p {
+  margin: 0 0 12px;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: 1.4;
+}
+
+.confirmActions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}

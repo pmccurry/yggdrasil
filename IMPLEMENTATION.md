@@ -68,7 +68,7 @@ Every plan journal entry uses one of these status tags:
 | M18 — OS Notifications + Audio | `[COMPLETED]` | 2026-03-01 | 2026-03-01 |
 | M19 — Panel Satellite Windows | `[COMPLETED]` | 2026-03-01 | 2026-03-01 |
 | M20 — Workspace Import/Export | `[COMPLETED]` | 2026-03-01 | 2026-03-01 |
-| M21 — Git Diff + Branch Management | `[PLANNED]` | — | — |
+| M21 — Git Diff + Branch Management | `[COMPLETED]` | 2026-03-02 | 2026-03-02 |
 
 ---
 
@@ -2382,7 +2382,19 @@ branches and there's a merge in progress, show a clear error message only.
 
 ### M21 — Plan Journal
 
-*Plans will be appended here by Claude Code during execution.*
+#### Plan Entry: M21 Git Diff + Branch Management — 2026-03-02
+**Status:** `[COMPLETED]`
+
+**Plan:** `docs/plans/2026-03-02-m21-git-diff-branch-management.md`
+
+**Tasks (7):**
+1. Add Rust `git_diff` command
+2. Add Rust branch management commands (`git_list_branches`, `git_create_branch`, `git_switch_branch`) + register all in lib.rs
+3. Add TypeScript types (`GitBranchInfo`) and shell wrappers
+4. Create `GitDiff.tsx` component with diff parsing and CSS styles
+5. Create `BranchManager.tsx` component with branch list/create/switch and CSS styles
+6. Update `GitPanel.tsx` with view routing (files/diff/branches) and `GitFileList.tsx` with file click handler
+7. Manual testing and final verification
 
 ---
 

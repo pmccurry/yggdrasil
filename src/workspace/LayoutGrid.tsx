@@ -6,6 +6,7 @@ import PanelContainer from '../panels/PanelContainer';
 import DragHandle from './DragHandle';
 import PanelAddButton from './PanelAddButton';
 import { useVerticalDrag, useHorizontalDrag } from '../hooks/useLayoutDrag';
+import { PanelType } from '../types/panels';
 import type { PanelSettings } from '../types/panels';
 import type { SatelliteWindowInfo } from '../types/panels';
 import type { PanelSlot, Workspace } from '../types/workspace';
@@ -171,7 +172,14 @@ function PanelRow({
                 panelType={panel.type}
                 isFocused={focusedIndex === panel.globalIndex}
                 canRemove={allPanels.length > 1}
-                onRemovePanel={() => dispatch({ type: 'REMOVE_PANEL', slotIndex: panel.globalIndex })}
+                onRemovePanel={() => {
+                  if (panel.type === PanelType.Terminal) {
+                    window.dispatchEvent(new CustomEvent('yggdrasil:terminal-cleanup', {
+                      detail: { panelId },
+                    }));
+                  }
+                  dispatch({ type: 'REMOVE_PANEL', slotIndex: panel.globalIndex });
+                }}
                 isSatellite={isSat}
                 onPopOut={() => onPopOut(panel.globalIndex)}
                 onRecall={() => onRecall(panelId)}
@@ -185,6 +193,11 @@ function PanelRow({
                   },
                 }}
                 onSwapPanel={(newType) => {
+                  if (panel.type === PanelType.Terminal && newType !== PanelType.Terminal) {
+                    window.dispatchEvent(new CustomEvent('yggdrasil:terminal-cleanup', {
+                      detail: { panelId },
+                    }));
+                  }
                   dispatch({ type: 'UPDATE_PANEL_TYPE', slotIndex: panel.globalIndex, panelType: newType });
                 }}
               />
@@ -342,7 +355,14 @@ function SpanningLayout({
           panelType={spanningPanel.type}
           isFocused={focusedIndex === spanningPanel.globalIndex}
           canRemove={panels.length > 1}
-          onRemovePanel={() => dispatch({ type: 'REMOVE_PANEL', slotIndex: spanningPanel.globalIndex })}
+          onRemovePanel={() => {
+            if (spanningPanel.type === PanelType.Terminal) {
+              window.dispatchEvent(new CustomEvent('yggdrasil:terminal-cleanup', {
+                detail: { panelId: spanningPanelId },
+              }));
+            }
+            dispatch({ type: 'REMOVE_PANEL', slotIndex: spanningPanel.globalIndex });
+          }}
           isSatellite={isSpanningSat}
           onPopOut={() => onPopOut(spanningPanel.globalIndex)}
           onRecall={() => onRecall(spanningPanelId)}
@@ -356,6 +376,11 @@ function SpanningLayout({
             },
           }}
           onSwapPanel={(newType) => {
+            if (spanningPanel.type === PanelType.Terminal && newType !== PanelType.Terminal) {
+              window.dispatchEvent(new CustomEvent('yggdrasil:terminal-cleanup', {
+                detail: { panelId: spanningPanelId },
+              }));
+            }
             dispatch({ type: 'UPDATE_PANEL_TYPE', slotIndex: spanningPanel.globalIndex, panelType: newType });
           }}
         />
@@ -390,7 +415,14 @@ function SpanningLayout({
                 panelType={panel.type}
                 isFocused={focusedIndex === panel.globalIndex}
                 canRemove={panels.length > 1}
-                onRemovePanel={() => dispatch({ type: 'REMOVE_PANEL', slotIndex: panel.globalIndex })}
+                onRemovePanel={() => {
+                  if (panel.type === PanelType.Terminal) {
+                    window.dispatchEvent(new CustomEvent('yggdrasil:terminal-cleanup', {
+                      detail: { panelId: pid },
+                    }));
+                  }
+                  dispatch({ type: 'REMOVE_PANEL', slotIndex: panel.globalIndex });
+                }}
                 isSatellite={isSat}
                 onPopOut={() => onPopOut(panel.globalIndex)}
                 onRecall={() => onRecall(pid)}
@@ -404,6 +436,11 @@ function SpanningLayout({
                   },
                 }}
                 onSwapPanel={(newType) => {
+                  if (panel.type === PanelType.Terminal && newType !== PanelType.Terminal) {
+                    window.dispatchEvent(new CustomEvent('yggdrasil:terminal-cleanup', {
+                      detail: { panelId: pid },
+                    }));
+                  }
                   dispatch({ type: 'UPDATE_PANEL_TYPE', slotIndex: panel.globalIndex, panelType: newType });
                 }}
               />
@@ -428,7 +465,14 @@ function SpanningLayout({
                 panelType={panel.type}
                 isFocused={focusedIndex === panel.globalIndex}
                 canRemove={panels.length > 1}
-                onRemovePanel={() => dispatch({ type: 'REMOVE_PANEL', slotIndex: panel.globalIndex })}
+                onRemovePanel={() => {
+                  if (panel.type === PanelType.Terminal) {
+                    window.dispatchEvent(new CustomEvent('yggdrasil:terminal-cleanup', {
+                      detail: { panelId: pid },
+                    }));
+                  }
+                  dispatch({ type: 'REMOVE_PANEL', slotIndex: panel.globalIndex });
+                }}
                 isSatellite={isSat}
                 onPopOut={() => onPopOut(panel.globalIndex)}
                 onRecall={() => onRecall(pid)}
@@ -442,6 +486,11 @@ function SpanningLayout({
                   },
                 }}
                 onSwapPanel={(newType) => {
+                  if (panel.type === PanelType.Terminal && newType !== PanelType.Terminal) {
+                    window.dispatchEvent(new CustomEvent('yggdrasil:terminal-cleanup', {
+                      detail: { panelId: pid },
+                    }));
+                  }
                   dispatch({ type: 'UPDATE_PANEL_TYPE', slotIndex: panel.globalIndex, panelType: newType });
                 }}
               />

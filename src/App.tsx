@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { WorkspaceProvider, useWorkspaceContext } from './store/WorkspaceContext';
 import { AppProvider, useAppContext } from './store/AppContext';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -15,6 +15,7 @@ import PlanningDrawer from './workspace/PlanningDrawer';
 import SettingsModal from './workspace/Settings/SettingsModal';
 import FirstRun from './workspace/FirstRun';
 import SatelliteShell from './panels/SatelliteShell';
+import { destroyAll as destroyAllTerminals } from './panels/terminal/terminalStore';
 
 function AppShell() {
   const { state: wsState, dispatch: wsDispatch, activeWorkspace } = useWorkspaceContext();
@@ -71,11 +72,27 @@ function AppShell() {
     let unlisten: (() => void) | undefined;
     const appWindow = getCurrentWebviewWindow();
     appWindow.onCloseRequested(async () => {
+      destroyAllTerminals();
       await closeAllOnExit();
     }).then(fn => { unlisten = fn; });
 
     return () => { if (unlisten) unlisten(); };
   }, [closeAllOnExit]);
+
+  // Clean up terminal store entries when a workspace is deleted
+  const prevWorkspaceIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const currentIds = new Set(wsState.workspaces.map(w => w.id));
+    for (const prevId of prevWorkspaceIdsRef.current) {
+      if (!currentIds.has(prevId)) {
+        window.dispatchEvent(new CustomEvent('yggdrasil:terminal-cleanup-workspace', {
+          detail: { workspaceId: prevId },
+        }));
+      }
+    }
+    prevWorkspaceIdsRef.current = currentIds;
+  }, [wsState.workspaces]);
 
   if (wsState.loading) return null;
   if (wsState.workspaces.length === 0) return <FirstRun />;

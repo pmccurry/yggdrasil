@@ -15,7 +15,6 @@ import PlanningDrawer from './workspace/PlanningDrawer';
 import SettingsModal from './workspace/Settings/SettingsModal';
 import FirstRun from './workspace/FirstRun';
 import SatelliteShell from './panels/SatelliteShell';
-import { destroyAll as destroyAllTerminals } from './panels/terminal/terminalStore';
 
 function AppShell() {
   const { state: wsState, dispatch: wsDispatch, activeWorkspace } = useWorkspaceContext();
@@ -72,7 +71,8 @@ function AppShell() {
     let unlisten: (() => void) | undefined;
     const appWindow = getCurrentWebviewWindow();
     appWindow.onCloseRequested(async () => {
-      destroyAllTerminals();
+      const { destroyAll } = await import('./panels/terminal/terminalStore');
+      destroyAll();
       await closeAllOnExit();
     }).then(fn => { unlisten = fn; });
 

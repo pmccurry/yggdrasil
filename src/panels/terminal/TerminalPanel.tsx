@@ -13,7 +13,6 @@ import {
 import {
   getEntry,
   setEntry,
-  destroy as destroyTerminal,
   attachListener,
 } from './terminalStore';
 import type { PanelProps, TerminalSettings } from '../../types/panels';
@@ -30,7 +29,7 @@ function TerminalPanel({ panelId, settings, projectRoot, onSettingsChange }: Pan
     const existing = getEntry(panelId);
 
     // --- Reattach existing terminal ---
-    if (existing && !existing.dead) {
+    if (existing) {
       wrapper.appendChild(existing.containerEl);
       existing.fitAddon.fit();
       const dims = existing.fitAddon.proposeDimensions();
@@ -52,11 +51,6 @@ function TerminalPanel({ panelId, settings, projectRoot, onSettingsChange }: Pan
           existing.containerEl.parentNode.removeChild(existing.containerEl);
         }
       };
-    }
-
-    // --- Dead entry: remove and start fresh ---
-    if (existing?.dead) {
-      destroyTerminal(panelId);
     }
 
     // --- Create new terminal ---
@@ -126,7 +120,6 @@ function TerminalPanel({ panelId, settings, projectRoot, onSettingsChange }: Pan
           fitAddon,
           busySince: null as number | null,
           initialPromptSeen: false,
-          dead: false,
         };
 
         const unlisten = await attachListener(entry);
@@ -135,11 +128,9 @@ function TerminalPanel({ panelId, settings, projectRoot, onSettingsChange }: Pan
         setEntry(panelId, entry);
 
         term.onData((data) => {
-          if (!entry.dead) {
-            writeToShell(entry.ptyId, data);
-            if (data === '\r' && entry.busySince === null) {
-              entry.busySince = Date.now();
-            }
+          writeToShell(entry.ptyId, data);
+          if (data === '\r' && entry.busySince === null) {
+            entry.busySince = Date.now();
           }
         });
 

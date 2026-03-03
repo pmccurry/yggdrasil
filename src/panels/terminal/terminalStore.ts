@@ -1,5 +1,5 @@
-import { Terminal } from '@xterm/xterm';
-import { FitAddon } from '@xterm/addon-fit';
+import type { Terminal } from '@xterm/xterm';
+import type { FitAddon } from '@xterm/addon-fit';
 import { killShell, onShellOutput } from '../../shell/terminal';
 import { emitNotification } from '../../utils/notify';
 
@@ -15,17 +15,12 @@ export interface TerminalEntry {
   fitAddon: FitAddon;
   busySince: number | null;
   initialPromptSeen: boolean;
-  dead: boolean;
 }
 
 const store = new Map<string, TerminalEntry>();
 
 export function getEntry(panelId: string): TerminalEntry | undefined {
   return store.get(panelId);
-}
-
-export function hasEntry(panelId: string): boolean {
-  return store.has(panelId);
 }
 
 export function setEntry(panelId: string, entry: TerminalEntry): void {
@@ -37,7 +32,6 @@ export async function attachListener(
   entry: TerminalEntry,
 ): Promise<() => void> {
   const unlisten = await onShellOutput(entry.ptyId, (data) => {
-    if (entry.dead) return;
     entry.terminal.write(data);
 
     const clean = data.replace(ANSI_REGEX, '');

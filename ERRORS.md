@@ -709,6 +709,39 @@ own window handle.
 
 ---
 
+## [WEBVIEW / DRAG-DROP] Main window dragDropEnabled intercepts child webview file drops
+**Date:** 2026-03-03
+**Milestone:** M22
+**Tags:** webview, tauri, drag-drop, windows
+
+**Problem:**
+Setting `dragDropEnabled: false` on child Webviews (AiChatPanel, ClaudePanel,
+WebviewPanel) did not enable HTML5 drag-and-drop for files dragged from Windows
+Explorer. Files still "snapped back" with no effect.
+
+**Failed Approaches:**
+- Only setting `dragDropEnabled: false` on child webview creation options.
+  The Tauri docs say this is required for HTML5 drag-drop on Windows, but it
+  wasn't sufficient.
+
+**Solution:**
+The main window's `dragDropEnabled` defaults to `true` in `tauri.conf.json`.
+The main window's native drag handler intercepts OS file drops at the window
+level **before** child webviews can receive them. Both the main window config
+AND child webview options must set `dragDropEnabled: false`.
+
+Added `"dragDropEnabled": false` to `src-tauri/tauri.conf.json` under
+`app.windows[0]`.
+
+**Implications:**
+- Any future Tauri app with child webviews needing HTML5 drag-drop must disable
+  `dragDropEnabled` at BOTH the window level AND the child webview level.
+- This disables Tauri's native `tauri://file-drop` events on the main window.
+  If native file drop events are needed elsewhere in the app, an alternative
+  approach (like listening for HTML5 drag events and forwarding them) is needed.
+
+---
+
 *End of ERRORS.md*
 *Version 1.0 — Created 2026-02-24*
 *This file only grows. Entries are never deleted.*

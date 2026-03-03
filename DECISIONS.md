@@ -1676,11 +1676,13 @@ to the terminal panel module.
 **Made By:** Joint
 
 **Decision:**
-Set `dragDropEnabled: false` on all Tauri child webviews (AiChatPanel, ClaudePanel,
-WebviewPanel) to allow embedded websites' HTML5 drag-and-drop handlers to work on
-Windows.
+Set `dragDropEnabled: false` on **both** the main window (`tauri.conf.json`) and
+all Tauri child webviews (AiChatPanel, ClaudePanel, WebviewPanel) to allow
+embedded websites' HTML5 drag-and-drop handlers to work on Windows.
 
 **Alternatives Considered:**
+- Only setting on child webviews — insufficient, the main window's native handler
+  intercepts file drops at the window level before child webviews receive them.
 - Intercept native drag-drop events and forward files via IPC — overly complex,
   the embedded website has no API to receive programmatic file injections.
 - Leave native drag-drop enabled — broken on Windows, files are silently ignored.
@@ -1688,11 +1690,14 @@ Windows.
 **Rationale:**
 Tauri API docs explicitly state: "Disabling [dragDropEnabled] is required to use
 HTML5 drag and drop on the frontend on Windows." The native drag-drop was never
-used for anything in the application.
+used for anything in the application. The main window config **must also** disable
+it because the window-level native handler intercepts OS file drops before they
+reach any child webview.
 
 **Implications:**
 - All future webview panels must set `dragDropEnabled: false` in their Webview
   constructor options
+- The main window config in tauri.conf.json must keep `dragDropEnabled: false`
 - If native file drop handling is ever needed, it would need to be re-enabled
   per-panel and coordinated with HTML5 drag-drop via IPC
 

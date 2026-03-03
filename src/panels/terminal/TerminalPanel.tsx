@@ -8,40 +8,63 @@ import {
   writeToShell,
   resizeShell,
   killShell,
-  onShellOutput,
   ptyExists,
 } from '../../shell/terminal';
+import {
+  getEntry,
+  setEntry,
+  destroy as destroyTerminal,
+  attachListener,
+} from './terminalStore';
 import type { PanelProps, TerminalSettings } from '../../types/panels';
-import { emitNotification } from '../../utils/notify';
 import styles from './terminal.module.css';
 
-const PROMPT_REGEX = /(?:PS [A-Z]:\\[^>]*>|[A-Z]:\\[^>]*>)\s*$/;
-const ANSI_REGEX = /\x1b\[[0-9;]*[a-zA-Z]/g;
-const MIN_COMMAND_DURATION_MS = 3000;
-
 function TerminalPanel({ panelId, settings, projectRoot, onSettingsChange }: PanelProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
   const [error, setError] = useState<string | null>(null);
-  const busyRef = useRef(false);
-  const busySinceRef = useRef(0);
-  const initialPromptSeenRef = useRef(false);
-  const skipKillRef = useRef(false);
-
-  // Sync skipKillRef from settings._skipKill
-  useEffect(() => {
-    skipKillRef.current = !!(settings as Record<string, unknown>)._skipKill;
-  }, [(settings as Record<string, unknown>)._skipKill]);
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
+    const wrapper = wrapperRef.current;
+    if (!wrapper) return;
 
+    const existing = getEntry(panelId);
+
+    // --- Reattach existing terminal ---
+    if (existing && !existing.dead) {
+      wrapper.appendChild(existing.containerEl);
+      existing.fitAddon.fit();
+      const dims = existing.fitAddon.proposeDimensions();
+      if (dims) {
+        resizeShell(existing.ptyId, dims.cols, dims.rows);
+      }
+      onSettingsChange({ ...settings, _ptyId: existing.ptyId });
+
+      const resizeObserver = new ResizeObserver(() => {
+        existing.fitAddon.fit();
+        const d = existing.fitAddon.proposeDimensions();
+        if (d) resizeShell(existing.ptyId, d.cols, d.rows);
+      });
+      resizeObserver.observe(existing.containerEl);
+
+      return () => {
+        resizeObserver.disconnect();
+        if (existing.containerEl.parentNode) {
+          existing.containerEl.parentNode.removeChild(existing.containerEl);
+        }
+      };
+    }
+
+    // --- Dead entry: remove and start fresh ---
+    if (existing?.dead) {
+      destroyTerminal(panelId);
+    }
+
+    // --- Create new terminal ---
     const termSettings = settings as TerminalSettings;
     const cwd = termSettings.cwd || projectRoot;
     const shell = termSettings.shell || 'powershell.exe';
     const existingPtyId = (settings as Record<string, unknown>)._ptyId as string | undefined;
 
-    // Read theme from CSS custom properties
     const rootStyles = getComputedStyle(document.documentElement);
     const term = new Terminal({
       fontFamily: rootStyles.getPropertyValue('--font-mono').trim(),
@@ -60,20 +83,22 @@ function TerminalPanel({ panelId, settings, projectRoot, onSettingsChange }: Pan
     const webLinksAddon = new WebLinksAddon();
     term.loadAddon(fitAddon);
     term.loadAddon(webLinksAddon);
-    term.open(container);
+
+    const containerEl = document.createElement('div');
+    containerEl.style.width = '100%';
+    containerEl.style.height = '100%';
+    wrapper.appendChild(containerEl);
+    term.open(containerEl);
     fitAddon.fit();
 
-    let ptyId: string | null = null;
-    let unlistenFn: (() => void) | null = null;
-    let disposed = false;
+    let cancelled = false;
 
-    // Spawn or reconnect shell
     (async () => {
       try {
+        let ptyId: string | null = null;
         let isReconnect = false;
 
         if (existingPtyId) {
-          // Try to reconnect to existing PTY
           const alive = await ptyExists(existingPtyId);
           if (alive) {
             ptyId = existingPtyId;
@@ -82,59 +107,47 @@ function TerminalPanel({ panelId, settings, projectRoot, onSettingsChange }: Pan
         }
 
         if (!ptyId) {
-          // Spawn fresh PTY
           ptyId = await spawnShell(cwd, shell);
         }
 
-        if (disposed) {
+        if (cancelled) {
           if (!isReconnect) await killShell(ptyId);
+          term.dispose();
           return;
         }
 
-        // Expose ptyId upward via onSettingsChange (D046)
         onSettingsChange({ ...settings, _ptyId: ptyId });
 
-        // PTY output → xterm display + prompt detection
-        const unlisten = await onShellOutput(ptyId, (data) => {
-          if (!disposed) {
-            term.write(data);
+        const entry = {
+          terminal: term,
+          ptyId,
+          unlisten: () => {},
+          containerEl,
+          fitAddon,
+          busySince: null as number | null,
+          initialPromptSeen: false,
+          dead: false,
+        };
 
-            // Detect prompt to track command completion
-            const clean = data.replace(ANSI_REGEX, '');
-            if (PROMPT_REGEX.test(clean)) {
-              if (!initialPromptSeenRef.current) {
-                initialPromptSeenRef.current = true;
-              } else if (busyRef.current) {
-                const elapsed = Date.now() - busySinceRef.current;
-                busyRef.current = false;
-                if (elapsed >= MIN_COMMAND_DURATION_MS) {
-                  emitNotification('terminal.command.complete', 'Terminal', 'Command finished');
-                }
-              }
-            }
-          }
-        });
-        unlistenFn = unlisten;
+        const unlisten = await attachListener(panelId, entry);
+        entry.unlisten = unlisten;
 
-        // xterm user input → PTY
+        setEntry(panelId, entry);
+
         term.onData((data) => {
-          if (ptyId && !disposed) {
-            writeToShell(ptyId, data);
-            // Enter key (\r) marks start of a command
-            if (data === '\r' && !busyRef.current) {
-              busyRef.current = true;
-              busySinceRef.current = Date.now();
+          if (!entry.dead) {
+            writeToShell(entry.ptyId, data);
+            if (data === '\r' && entry.busySince === null) {
+              entry.busySince = Date.now();
             }
           }
         });
 
-        // Sync terminal dimensions with PTY
         const dims = fitAddon.proposeDimensions();
-        if (dims && ptyId) {
+        if (dims) {
           await resizeShell(ptyId, dims.cols, dims.rows);
         }
 
-        // Execute workspace startup commands only on fresh spawn, not reconnect
         if (!isReconnect) {
           const startupCommands = termSettings.startupCommands || [];
           for (const cmd of startupCommands) {
@@ -142,29 +155,28 @@ function TerminalPanel({ panelId, settings, projectRoot, onSettingsChange }: Pan
           }
         }
       } catch (err) {
-        if (!disposed) {
+        if (!cancelled) {
           setError(String(err));
         }
       }
     })();
 
-    // Auto-fit terminal on container resize
     const resizeObserver = new ResizeObserver(() => {
       fitAddon.fit();
-      const dims = fitAddon.proposeDimensions();
-      if (dims && ptyId) {
-        resizeShell(ptyId, dims.cols, dims.rows);
+      const entry = getEntry(panelId);
+      if (entry) {
+        const dims = fitAddon.proposeDimensions();
+        if (dims) resizeShell(entry.ptyId, dims.cols, dims.rows);
       }
     });
-    resizeObserver.observe(container);
+    resizeObserver.observe(containerEl);
 
-    // Cleanup: kill shell (unless skipKill), dispose xterm, disconnect observer
     return () => {
-      disposed = true;
+      cancelled = true;
       resizeObserver.disconnect();
-      if (unlistenFn) unlistenFn();
-      if (ptyId && !skipKillRef.current) killShell(ptyId);
-      term.dispose();
+      if (containerEl.parentNode) {
+        containerEl.parentNode.removeChild(containerEl);
+      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [panelId]);
@@ -177,7 +189,7 @@ function TerminalPanel({ panelId, settings, projectRoot, onSettingsChange }: Pan
     );
   }
 
-  return <div ref={containerRef} className={styles.container} />;
+  return <div ref={wrapperRef} className={styles.container} />;
 }
 
 export default TerminalPanel;

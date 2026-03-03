@@ -69,6 +69,7 @@ Every plan journal entry uses one of these status tags:
 | M19 — Panel Satellite Windows | `[COMPLETED]` | 2026-03-01 | 2026-03-01 |
 | M20 — Workspace Import/Export | `[COMPLETED]` | 2026-03-01 | 2026-03-01 |
 | M21 — Git Diff + Branch Management | `[COMPLETED]` | 2026-03-02 | 2026-03-02 |
+| M22 — File Drag-Drop + Terminal Persistence | `[COMPLETED]` | 2026-03-03 | 2026-03-03 |
 
 ---
 
@@ -2398,6 +2399,48 @@ branches and there's a merge in progress, show a clear error message only.
 
 ---
 
+## MILESTONE 22 — FILE DRAG-DROP + TERMINAL PERSISTENCE
+
+### Definition of Done
+
+- [x] File drag-and-drop works in embedded webviews (claude.ai, etc.)
+- [x] Terminal sessions persist across workspace switches (PTY alive, scrollback preserved)
+- [x] Background terminal notifications fire when commands complete in non-active workspaces
+- [x] Terminal cleanup on panel swap, panel removal, workspace deletion, and app close
+- [x] skipKill pattern removed (terminal store handles lifecycle)
+- [x] Decision logged (D051, D052)
+- [x] Zero TypeScript errors
+
+### M22 — Plan Journal
+
+#### Plan Entry: M22 File Drag-Drop + Terminal Persistence — 2026-03-03
+**Status:** `[COMPLETED]`
+
+**Plan:** `docs/plans/2026-03-03-m22-dnd-and-terminal-persistence.md`
+
+**Tasks (10):**
+1. Add `dragDropEnabled: false` to AiChatPanel webview
+2. Add `dragDropEnabled: false` to ClaudePanel webview
+3. Add `dragDropEnabled: false` to WebviewPanel webview + commit
+4. Create terminal state store (`terminalStore.ts`)
+5. Refactor TerminalPanel to use store-based lifecycle
+6. Wire cleanup events for panel swap and removal in LayoutGrid
+7. Wire cleanup for workspace deletion and app close in App.tsx
+8. Remove skipKill pattern from useSatellitePanel
+9. Log decisions (D051, D052) and update IMPLEMENTATION.md
+10. Full verification
+
+**Completion Notes:**
+- `dragDropEnabled: false` is a Tauri Webview option that disables native drag-drop
+  interception, allowing HTML5 drag-drop to pass through to embedded websites
+- Terminal State Store is a module-level Map outside React lifecycle — terminals survive
+  workspace switches with full scrollback and running processes preserved
+- Background notifications work via the store's PTY output listener, which runs
+  prompt detection and emits notification events regardless of component mount state
+- Cleanup events use the existing custom event pattern (`yggdrasil:terminal-cleanup`)
+
+---
+
 ## APPENDIX A — V5+ CONSIDERATIONS
 
 Items sequenced beyond V4. Not forgotten — logged here so V5 planning has a
@@ -2411,9 +2454,10 @@ keyboard shortcuts, planning drawer content, HTTP endpoint widget.
 Settings modal, first-run experience, git panel, AI provider system with
 Credential Manager security, Tauri updater, distribution to testers.
 
-**Delivered in V4 (M17–M21):**
+**Delivered in V4 (M17–M22):**
 Public release prep, OS notifications + audio, panel satellite windows,
-workspace import/export, git diff + branch management.
+workspace import/export, git diff + branch management, webview drag-drop +
+terminal persistence.
 
 **Remaining — V5+ Considerations:**
 

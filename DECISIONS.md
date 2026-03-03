@@ -1633,6 +1633,71 @@ keys and project folder. This is the correct mental model for portability.
 
 ---
 
+## D051 — Terminal persistence: module-level state store outside React lifecycle
+**Date:** 2026-03-03
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Terminal instances (xterm.js Terminal, PTY connections, Tauri event listeners) are
+managed by a module-level store (`terminalStore.ts`) that persists outside React's
+component lifecycle. When workspace switches cause terminal panels to unmount, the
+store keeps the terminal alive. When the panel remounts, it reattaches to the
+existing terminal with full scrollback preserved.
+
+**Alternatives Considered:**
+- Hidden workspace layers (render all workspaces, hide non-active with CSS) —
+  rejected because native Tauri webviews can't be hidden with CSS (ERRORS.md),
+  memory-heavy for many workspaces, and affects all panel types not just terminals.
+- Rust-side PTY buffer replay (keep PTY alive, buffer output in Rust, replay on
+  remount) — rejected because ANSI escape sequences don't replay correctly,
+  buffer size management is complex, and visual state is lossy.
+
+**Rationale:**
+xterm.js Terminal.write() works on a detached terminal — it writes to the internal
+buffer. When the container element is reappended to the DOM, the terminal renders
+the full buffer automatically. This means no serialization, no replay, and exact
+visual fidelity. The module-level Map pattern is simple, testable, and contained
+to the terminal panel module.
+
+**Implications:**
+- Terminal panels never kill PTY on unmount — cleanup is explicit via custom events
+- Background PTY output continues to accumulate in the terminal buffer
+- Background notifications fire normally (prompt detection runs in the store listener)
+- Cleanup events dispatched by LayoutGrid (swap/remove) and AppShell (workspace delete, app close)
+- The `_skipKill` pattern (D046) is no longer needed for terminal panels
+- Satellite window reconnection still works — the store entry is found by panelId
+
+---
+
+## D052 — Webview dragDropEnabled: false for HTML5 drag-and-drop on Windows
+**Date:** 2026-03-03
+**Status:** [ACTIVE]
+**Made By:** Joint
+
+**Decision:**
+Set `dragDropEnabled: false` on all Tauri child webviews (AiChatPanel, ClaudePanel,
+WebviewPanel) to allow embedded websites' HTML5 drag-and-drop handlers to work on
+Windows.
+
+**Alternatives Considered:**
+- Intercept native drag-drop events and forward files via IPC — overly complex,
+  the embedded website has no API to receive programmatic file injections.
+- Leave native drag-drop enabled — broken on Windows, files are silently ignored.
+
+**Rationale:**
+Tauri API docs explicitly state: "Disabling [dragDropEnabled] is required to use
+HTML5 drag and drop on the frontend on Windows." The native drag-drop was never
+used for anything in the application.
+
+**Implications:**
+- All future webview panels must set `dragDropEnabled: false` in their Webview
+  constructor options
+- If native file drop handling is ever needed, it would need to be re-enabled
+  per-panel and coordinated with HTML5 drag-drop via IPC
+
+---
+
 *End of DECISIONS.md*
 *Version 1.0 — Created 2026-02-24*
 *Entries are never deleted. Superseded entries are marked [SUPERSEDED].*

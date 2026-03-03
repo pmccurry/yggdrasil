@@ -34,7 +34,6 @@ export function setEntry(panelId: string, entry: TerminalEntry): void {
 
 /** Start listening for PTY output, write to terminal buffer, and emit notifications. */
 export async function attachListener(
-  panelId: string,
   entry: TerminalEntry,
 ): Promise<() => void> {
   const unlisten = await onShellOutput(entry.ptyId, (data) => {

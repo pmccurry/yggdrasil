@@ -129,7 +129,7 @@ function TerminalPanel({ panelId, settings, projectRoot, onSettingsChange }: Pan
           dead: false,
         };
 
-        const unlisten = await attachListener(panelId, entry);
+        const unlisten = await attachListener(entry);
         entry.unlisten = unlisten;
 
         setEntry(panelId, entry);

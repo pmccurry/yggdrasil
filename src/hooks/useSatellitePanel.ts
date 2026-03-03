@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import { useWorkspaceContext } from '../store/WorkspaceContext';
 import { PANEL_REGISTRY } from '../panels/registry';
-import { PanelType } from '../types/panels';
 import type { SatelliteWindowInfo } from '../types/panels';
 import {
   openSatelliteWindow,
@@ -25,15 +24,6 @@ export function useSatellitePanel() {
 
     const windowLabel = `satellite-${panelId}`;
     const entry = PANEL_REGISTRY[panel.type];
-
-    // For terminal panels, set _skipKill so PTY survives unmount
-    if (panel.type === PanelType.Terminal) {
-      dispatch({
-        type: 'UPDATE_PANEL_SETTINGS',
-        slotIndex,
-        settings: { ...panel.settings, _skipKill: true },
-      });
-    }
 
     // Build satellite URL with query params
     const params = new URLSearchParams({
@@ -69,35 +59,10 @@ export function useSatellitePanel() {
     const info = state.satellitePanels[panelId];
     if (!info) return;
 
-    // For terminal panels, set _skipKill on the slot before closing the satellite
-    // so the satellite's TerminalPanel cleanup skips killShell
-    if (info.panelType === PanelType.Terminal && activeWorkspace) {
-      const panel = activeWorkspace.layout.panels[info.slotIndex];
-      if (panel) {
-        dispatch({
-          type: 'UPDATE_PANEL_SETTINGS',
-          slotIndex: info.slotIndex,
-          settings: { ...panel.settings, _skipKill: true },
-        });
-      }
-    }
-
-    // Emit recall event — satellite will self-close after setting skipKill
+    // Emit recall event — satellite will self-close
     await emitRecallRequested(panelId);
     dispatch({ type: 'SATELLITE_CLOSE', panelId });
-
-    // Clear _skipKill after recall so the main window's terminal can kill normally on unmount
-    if (info.panelType === PanelType.Terminal && activeWorkspace) {
-      const panel = activeWorkspace.layout.panels[info.slotIndex];
-      if (panel) {
-        dispatch({
-          type: 'UPDATE_PANEL_SETTINGS',
-          slotIndex: info.slotIndex,
-          settings: { ...panel.settings, _skipKill: false },
-        });
-      }
-    }
-  }, [state.satellitePanels, activeWorkspace, dispatch]);
+  }, [state.satellitePanels, dispatch]);
 
   const recallAll = useCallback(async () => {
     const panelIds = Object.keys(state.satellitePanels);

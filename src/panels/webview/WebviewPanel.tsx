@@ -103,6 +103,7 @@ function WebviewPanel({ panelId, settings, onSettingsChange }: PanelProps) {
 
         const wv = new Webview(hostWindow, label, {
           url,
+          dragDropEnabled: false,
           x: rect.left,
           y: rect.top,
           width: Math.max(rect.width, 1),

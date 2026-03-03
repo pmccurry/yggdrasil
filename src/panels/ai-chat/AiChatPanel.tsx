@@ -73,6 +73,7 @@ function AiChatPanel({ panelId, settings, onSettingsChange }: PanelProps) {
 
         const wv = new Webview(hostWindow, label, {
           url: provider!.webviewUrl ?? undefined,
+          dragDropEnabled: false,
           x: rect.left,
           y: rect.top,
           width: Math.max(rect.width, 1),

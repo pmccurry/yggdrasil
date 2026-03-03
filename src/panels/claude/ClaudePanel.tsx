@@ -60,6 +60,7 @@ function ClaudePanel({ panelId, settings }: PanelProps) {
 
         const wv = new Webview(hostWindow, label, {
           url: webviewTarget ?? undefined,
+          dragDropEnabled: false,
           x: rect.left,
           y: rect.top,
           width: Math.max(rect.width, 1),
